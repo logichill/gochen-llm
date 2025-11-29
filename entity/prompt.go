@@ -2,6 +2,8 @@ package entity
 
 import "time"
 
+// PromptScope 定义提示词模板的作用域维度
+// 用于区分全局、组织、项目与用户级的配置边界。
 type PromptScope string
 
 const (
@@ -71,8 +73,8 @@ type PromptTemplate struct {
 	// 存储额外的配置信息，如推荐的模型参数（Temperature, MaxTokens 等）。
 	MetadataJSON string `gorm:"type:text"`
 
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
+	CreatedAt time.Time `gorm:"autoCreateTime"` // 创建时间
+	UpdatedAt time.Time `gorm:"autoUpdateTime"` // 更新时间
 }
 
 // TableName 设置表名为 llm_prompt_templates
@@ -82,15 +84,15 @@ func (PromptTemplate) TableName() string {
 
 // PromptVersion 提示词版本记录
 type PromptVersion struct {
-	ID         int64  `gorm:"primaryKey;autoIncrement"`
-	TemplateID int64  `gorm:"index:idx_template_version,priority:1"`
-	Version    int    `gorm:"not null;index:idx_template_version,priority:2"`
-	Content    string `gorm:"type:text;not null"`
+	ID         int64  `gorm:"primaryKey;autoIncrement"`                      // 版本记录主键 ID
+	TemplateID int64  `gorm:"index:idx_template_version,priority:1"`         // 关联的模板 ID
+	Version    int    `gorm:"not null;index:idx_template_version,priority:2"` // 版本号
+	Content    string `gorm:"type:text;not null"`                            // 版本对应的模板内容
 
-	VariablesJSON string `gorm:"type:text"`
-	ChangeLog     string `gorm:"type:text"`
-	CreatedBy     int64
-	CreatedAt     time.Time `gorm:"autoCreateTime"`
+	VariablesJSON string    `gorm:"type:text"`       // 版本对应的变量定义 JSON
+	ChangeLog     string    `gorm:"type:text"`       // 版本变更说明
+	CreatedBy     int64     // 创建人用户 ID
+	CreatedAt     time.Time `gorm:"autoCreateTime"` // 创建时间
 }
 
 func (PromptVersion) TableName() string {
@@ -99,17 +101,17 @@ func (PromptVersion) TableName() string {
 
 // ABTest 提示词 A/B 测试配置
 type ABTest struct {
-	ID           int64     `gorm:"primaryKey;autoIncrement"`
-	Name         string    `gorm:"size:200;not null"`
-	TemplateAID  int64     `gorm:"not null"`
-	TemplateBID  int64     `gorm:"not null"`
-	TrafficSplit int       `gorm:"not null;default:50"`
-	Status       string    `gorm:"size:20;not null;default:'running';index:idx_status"`
-	StartAt      time.Time `gorm:""`
-	EndAt        time.Time `gorm:""`
-	ResultJSON   string    `gorm:"type:text"`
-	CreatedAt    time.Time `gorm:"autoCreateTime"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime"`
+	ID           int64     `gorm:"primaryKey;autoIncrement"`                          // A/B 测试主键 ID
+	Name         string    `gorm:"size:200;not null"`                                 // 测试名称
+	TemplateAID  int64     `gorm:"not null"`                                          // 变体 A 使用的模板 ID
+	TemplateBID  int64     `gorm:"not null"`                                          // 变体 B 使用的模板 ID
+	TrafficSplit int       `gorm:"not null;default:50"`                               // 流量分配比例（A 百分比）
+	Status       string    `gorm:"size:20;not null;default:'running';index:idx_status"` // 状态：running/stopped 等
+	StartAt      time.Time `gorm:""`                                                  // 开始时间
+	EndAt        time.Time `gorm:""`                                                  // 结束时间
+	ResultJSON   string    `gorm:"type:text"`                                         // 统计与分析结果 JSON
+	CreatedAt    time.Time `gorm:"autoCreateTime"`                                    // 创建时间
+	UpdatedAt    time.Time `gorm:"autoUpdateTime"`                                    // 更新时间
 }
 
 func (ABTest) TableName() string {
@@ -143,8 +145,8 @@ type StoryWorldMetadata struct {
 
 // UserPreferencesMetadata 用户偏好的元数据结构（原 GrowthProfile，存储在 MetadataJSON 中）
 type UserPreferencesMetadata struct {
-	Age         int      `json:"age"`
-	Grade       string   `json:"grade"`
+	Age         int      `json:"age"`         // 年龄
+	Grade       string   `json:"grade"`       // 年级或学段
 	FocusAreas  []string `json:"focus_areas"`  // 希望强化的方向
 	AvoidThemes []string `json:"avoid_themes"` // 希望回避的主题
 }
