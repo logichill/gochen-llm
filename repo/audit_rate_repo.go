@@ -7,7 +7,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/errors"
-	"gochen/orm"
+	"gochen/data/orm"
 )
 
 // AuditLogRepo 持久化审计日志

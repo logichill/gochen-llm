@@ -5,7 +5,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/errors"
-	"gochen/orm"
+	"gochen/data/orm"
 )
 
 // ProviderConfigRepo 管理多源 LLM 端点配置

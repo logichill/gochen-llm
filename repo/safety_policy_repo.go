@@ -6,7 +6,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/errors"
-	"gochen/orm"
+	"gochen/data/orm"
 )
 
 // SafetyPolicyRepo 管理系统级 LLM 安全策略

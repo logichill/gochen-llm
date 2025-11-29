@@ -6,7 +6,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/errors"
-	"gochen/orm"
+	"gochen/data/orm"
 )
 
 // MetricsRepo 持久化 LLM 调用指标
