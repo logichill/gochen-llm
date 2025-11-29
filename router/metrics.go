@@ -6,7 +6,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	httpx "gochen/httpx"
+	httpx "gochen/http"
 )
 
 // MetricsRoutes 提供指标看板接口（时间窗口聚合与原始日志分页）

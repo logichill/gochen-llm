@@ -8,8 +8,8 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
-	httpx "gochen/httpx"
-	hbasic "gochen/httpx/basic"
+	httpx "gochen/http"
+	hbasic "gochen/http/basic"
 )
 
 // LLMAdminRoutes 提供 LLM 模块的管理接口
