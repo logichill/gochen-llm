@@ -67,13 +67,13 @@ type healthSample struct {
 
 type providerManagerImpl struct {
 	repo   repo.ProviderConfigRepo
-	logger logging.Logger
+	logger logging.ILogger
 
 	endpoints atomic.Value // []*endpointState
 	pingEvery time.Duration
 }
 
-func NewProviderManager(repo repo.ProviderConfigRepo, logger logging.Logger) (ProviderManager, error) {
+func NewProviderManager(repo repo.ProviderConfigRepo, logger logging.ILogger) (ProviderManager, error) {
 	m := &providerManagerImpl{
 		repo:      repo,
 		logger:    logger,
