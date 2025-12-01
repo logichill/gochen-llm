@@ -5,8 +5,8 @@ import (
 	stdErrors "errors"
 
 	"gochen-llm/entity"
-	"gochen/errors"
 	"gochen/data/orm"
+	"gochen/errors"
 )
 
 // SafetyPolicyRepo 管理系统级 LLM 安全策略
@@ -34,7 +34,7 @@ func (r *safetyPolicyRepoImpl) GetActive(ctx context.Context) (*entity.SafetyPol
 		if stdErrors.Is(err, orm.ErrNotFound) {
 			return nil, nil
 		}
-		return nil, errors.WrapDatabaseError(ctx, err, "查询 LLM 安全配置失败")
+		return nil, errors.WrapDbError(ctx, err, "查询 LLM 安全配置失败")
 	}
 	return &policy, nil
 }
@@ -45,7 +45,7 @@ func (r *safetyPolicyRepoImpl) Save(ctx context.Context, policy *entity.SafetyPo
 	}
 	policy.ID = 1
 	if err := r.model.model(r.orm).Save(ctx, policy); err != nil {
-		return errors.WrapDatabaseError(ctx, err, "保存 LLM 安全配置失败")
+		return errors.WrapDbError(ctx, err, "保存 LLM 安全配置失败")
 	}
 	return nil
 }

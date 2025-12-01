@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"gochen-llm/entity"
-	"gochen/errors"
 	"gochen/data/orm"
+	"gochen/errors"
 )
 
 type PromptFilter struct {
@@ -54,7 +54,7 @@ func (r *promptTemplateRepoImpl) GetByID(ctx context.Context, id int64) (*entity
 		if stdErrors.Is(err, orm.ErrNotFound) {
 			return nil, nil
 		}
-		return nil, errors.WrapDatabaseError(ctx, err, "查询提示词模板失败")
+		return nil, errors.WrapDbError(ctx, err, "查询提示词模板失败")
 	}
 	return &tmpl, nil
 }
@@ -63,7 +63,7 @@ func (r *promptTemplateRepoImpl) GetByID(ctx context.Context, id int64) (*entity
 func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.PromptTemplate) error {
 	session, err := r.orm.Begin(ctx)
 	if err != nil {
-		return errors.WrapDatabaseError(ctx, err, "开启提示词模板事务失败")
+		return errors.WrapDbError(ctx, err, "开启提示词模板事务失败")
 	}
 	committed := false
 	defer func() {
@@ -80,7 +80,7 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 		orm.WithForUpdate(),
 	)
 	if err != nil && !stdErrors.Is(err, orm.ErrNotFound) {
-		return errors.WrapDatabaseError(ctx, err, "查询提示词模板失败")
+		return errors.WrapDbError(ctx, err, "查询提示词模板失败")
 	}
 
 	if stdErrors.Is(err, orm.ErrNotFound) {
@@ -88,7 +88,7 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 			tmpl.Version = 1
 		}
 		if err := model.Create(ctx, tmpl); err != nil {
-			return errors.WrapDatabaseError(ctx, err, "创建提示词模板失败")
+			return errors.WrapDbError(ctx, err, "创建提示词模板失败")
 		}
 	} else {
 		tmpl.ID = existing.ID
@@ -107,12 +107,12 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 			"metadata_json":  tmpl.MetadataJSON,
 		}
 		if err := model.UpdateValues(ctx, updateValues, orm.WithWhere("id = ?", existing.ID)); err != nil {
-			return errors.WrapDatabaseError(ctx, err, "更新提示词模板失败")
+			return errors.WrapDbError(ctx, err, "更新提示词模板失败")
 		}
 	}
 
 	if err := session.Commit(); err != nil {
-		return errors.WrapDatabaseError(ctx, err, "提交提示词模板事务失败")
+		return errors.WrapDbError(ctx, err, "提交提示词模板事务失败")
 	}
 	committed = true
 	return nil
@@ -143,7 +143,7 @@ func (r *promptTemplateRepoImpl) FindEffective(ctx context.Context, name string,
 		if stdErrors.Is(err, orm.ErrNotFound) {
 			return nil, nil
 		}
-		return nil, errors.WrapDatabaseError(ctx, err, "查询提示词模板失败")
+		return nil, errors.WrapDbError(ctx, err, "查询提示词模板失败")
 	}
 	return &tmpl, nil
 }
@@ -174,7 +174,7 @@ func (r *promptTemplateRepoImpl) List(ctx context.Context, filter PromptFilter) 
 
 	var list []*entity.PromptTemplate
 	if err := r.templateModel.model(r.orm).Find(ctx, &list, opts...); err != nil {
-		return nil, errors.WrapDatabaseError(ctx, err, "查询提示词模板列表失败")
+		return nil, errors.WrapDbError(ctx, err, "查询提示词模板列表失败")
 	}
 	return list, nil
 }
@@ -187,7 +187,7 @@ func (r *promptTemplateRepoImpl) SaveVersion(ctx context.Context, version *entit
 		version.Version = 1
 	}
 	if err := r.versionModel.model(r.orm).Create(ctx, version); err != nil {
-		return errors.WrapDatabaseError(ctx, err, "保存提示词版本失败")
+		return errors.WrapDbError(ctx, err, "保存提示词版本失败")
 	}
 	return nil
 }
@@ -201,7 +201,7 @@ func (r *promptTemplateRepoImpl) GetVersion(ctx context.Context, templateID int6
 		if stdErrors.Is(err, orm.ErrNotFound) {
 			return nil, nil
 		}
-		return nil, errors.WrapDatabaseError(ctx, err, "查询提示词版本失败")
+		return nil, errors.WrapDbError(ctx, err, "查询提示词版本失败")
 	}
 	return &v, nil
 }
@@ -211,7 +211,7 @@ func (r *promptTemplateRepoImpl) SaveABTest(ctx context.Context, test *entity.AB
 		return errors.NewError(errors.ErrCodeInvalidInput, "A/B 测试不能为空")
 	}
 	if err := r.abTestModel.model(r.orm).Create(ctx, test); err != nil {
-		return errors.WrapDatabaseError(ctx, err, "保存 A/B 测试失败")
+		return errors.WrapDbError(ctx, err, "保存 A/B 测试失败")
 	}
 	return nil
 }
@@ -221,7 +221,7 @@ func (r *promptTemplateRepoImpl) UpdateABTest(ctx context.Context, test *entity.
 		return errors.NewError(errors.ErrCodeInvalidInput, "A/B 测试 ID 无效")
 	}
 	if err := r.abTestModel.model(r.orm).Save(ctx, test, orm.WithWhere("id = ?", test.ID)); err != nil {
-		return errors.WrapDatabaseError(ctx, err, "更新 A/B 测试失败")
+		return errors.WrapDbError(ctx, err, "更新 A/B 测试失败")
 	}
 	return nil
 }
@@ -236,7 +236,7 @@ func (r *promptTemplateRepoImpl) GetABTest(ctx context.Context, id int64) (*enti
 		if stdErrors.Is(err, orm.ErrNotFound) {
 			return nil, nil
 		}
-		return nil, errors.WrapDatabaseError(ctx, err, "查询 A/B 测试失败")
+		return nil, errors.WrapDbError(ctx, err, "查询 A/B 测试失败")
 	}
 	return &test, nil
 }
