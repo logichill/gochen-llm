@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	stdErrors "errors"
 
 	"gochen-llm/entity"
 	"gochen/data/orm"
@@ -44,7 +43,7 @@ func (r *conversationRepoImpl) GetConversation(ctx context.Context, id int64) (*
 	var conv entity.Conversation
 	err := r.conversationModel.model(r.orm).First(ctx, &conv, orm.WithWhere("id = ?", id))
 	if err != nil {
-		if stdErrors.Is(err, orm.ErrNotFound) {
+		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.WrapDbError(ctx, err, "查询会话失败")

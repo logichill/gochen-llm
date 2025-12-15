@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	stdErrors "errors"
 	"time"
 
 	"gochen-llm/entity"
@@ -58,7 +57,7 @@ func NewRateLimitRepo(o orm.IOrm) RateLimitRepo {
 
 func (r *auditLogRepoImpl) Save(ctx context.Context, log *entity.AuditLog) error {
 	if log == nil {
-		return errors.NewError(errors.ErrCodeInvalidInput, "audit log 不能为空")
+		return errors.NewError(errors.InvalidInput, "audit log 不能为空")
 	}
 	if err := r.model.model(r.orm).Create(ctx, log); err != nil {
 		return errors.WrapDbError(ctx, err, "保存审计日志失败")
@@ -97,7 +96,7 @@ func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limi
 
 func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourceType string, windowStart time.Time, windowSizeSeconds int, deltaReq int, deltaTokens int) (*entity.RateLimit, error) {
 	if userID <= 0 {
-		return nil, errors.NewError(errors.ErrCodeInvalidInput, "userID 无效")
+		return nil, errors.NewError(errors.InvalidInput, "userID 无效")
 	}
 	if resourceType == "" {
 		resourceType = "default"
@@ -125,7 +124,7 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 		orm.WithForUpdate(),
 	)
 	if err != nil {
-		if stdErrors.Is(err, orm.ErrNotFound) {
+		if errors.IsNotFound(err) {
 			result = entity.RateLimit{
 				UserID:            userID,
 				ResourceType:      resourceType,

@@ -91,10 +91,10 @@ func (r *providerConfigRepoImpl) UpdatePricing(ctx context.Context, updates []en
 
 	for _, up := range updates {
 		if up.ID <= 0 {
-			return errors.NewError(errors.ErrCodeInvalidInput, "pricing id 无效")
+			return errors.NewError(errors.InvalidInput, "pricing id 无效")
 		}
 		if up.InputPricePer1k < 0 || up.OutputPricePer1k < 0 {
-			return errors.NewError(errors.ErrCodeValidation, "单价不能为负数")
+			return errors.NewError(errors.Validation, "单价不能为负数")
 		}
 
 		updateValues := map[string]any{

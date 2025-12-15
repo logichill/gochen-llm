@@ -32,7 +32,7 @@ func NewMetricsRepo(o orm.IOrm) MetricsRepo {
 
 func (r *metricsRepoImpl) Save(ctx context.Context, m *entity.Metrics) error {
 	if m == nil {
-		return errors.NewError(errors.ErrCodeInvalidInput, "metrics 不能为空")
+		return errors.NewError(errors.InvalidInput, "metrics 不能为空")
 	}
 	if err := r.model.model(r.orm).Create(ctx, m); err != nil {
 		return errors.WrapDbError(ctx, err, "保存 LLM 指标失败")
@@ -71,7 +71,7 @@ func (r *metricsRepoImpl) Aggregate(ctx context.Context, filter entity.MetricsFi
 
 func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.MetricsFilter) ([]*entity.VariantMetricsReport, error) {
 	if filter.ABTestID == nil {
-		return nil, errors.NewError(errors.ErrCodeInvalidInput, "ab_test_id 不能为空")
+		return nil, errors.NewError(errors.InvalidInput, "ab_test_id 不能为空")
 	}
 
 	opts := buildMetricsOptions(filter)
@@ -116,7 +116,7 @@ func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.
 
 func (r *metricsRepoImpl) Significance(ctx context.Context, filter entity.MetricsFilter) (*entity.ABSignificanceReport, error) {
 	if filter.ABTestID == nil {
-		return nil, errors.NewError(errors.ErrCodeInvalidInput, "ab_test_id 不能为空")
+		return nil, errors.NewError(errors.InvalidInput, "ab_test_id 不能为空")
 	}
 
 	// 基于成功调用作为曝光，转换事件为 status=converted（可按 outcome 过滤）

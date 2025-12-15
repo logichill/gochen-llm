@@ -133,7 +133,7 @@ func (s *safetyServiceImpl) CheckRateLimit(ctx context.Context, userID int64) (*
 		return &RateLimitResult{
 			Allowed: false,
 			Reason:  "rate_limited",
-		}, errors.NewError(errors.ErrCodeValidation, msg)
+		}, errors.NewError(errors.Validation, msg)
 	}
 
 	return &RateLimitResult{Allowed: true}, nil
@@ -141,7 +141,7 @@ func (s *safetyServiceImpl) CheckRateLimit(ctx context.Context, userID int64) (*
 
 func (s *safetyServiceImpl) RecordAuditLog(ctx context.Context, log *entity.AuditLog) error {
 	if log == nil {
-		return errors.NewError(errors.ErrCodeInvalidInput, "audit log 不能为空")
+		return errors.NewError(errors.InvalidInput, "audit log 不能为空")
 	}
 	if s.auditRepo == nil {
 		// 兜底：无持久化时不阻断主流程
@@ -153,7 +153,7 @@ func (s *safetyServiceImpl) RecordAuditLog(ctx context.Context, log *entity.Audi
 func (s *safetyServiceImpl) DetectPII(ctx context.Context, content string) (*SafetyResult, error) {
 	piiRegex := regexp.MustCompile(`(?i)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\d{3,4}[- ]?\d{6,8})`)
 	if piiRegex.MatchString(content) {
-		return &SafetyResult{Allowed: false, Reason: "pii_detected"}, errors.NewError(errors.ErrCodeValidation, "内容包含敏感信息")
+		return &SafetyResult{Allowed: false, Reason: "pii_detected"}, errors.NewError(errors.Validation, "内容包含敏感信息")
 	}
 	return &SafetyResult{Allowed: true}, nil
 }
@@ -250,7 +250,7 @@ func (s *safetyServiceImpl) validateText(ctx context.Context, text string) (*Saf
 			return &SafetyResult{
 				Allowed: false,
 				Reason:  "命中敏感词",
-			}, errors.NewError(errors.ErrCodeValidation, "内容命中敏感词")
+			}, errors.NewError(errors.Validation, "内容命中敏感词")
 		}
 	}
 	return &SafetyResult{Allowed: true}, nil

@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	stdErrors "errors"
 
 	"gochen-llm/entity"
 	"gochen/data/orm"
@@ -31,7 +30,7 @@ func (r *safetyPolicyRepoImpl) GetActive(ctx context.Context) (*entity.SafetyPol
 	var policy entity.SafetyPolicy
 	err := r.model.model(r.orm).First(ctx, &policy, orm.WithWhere("id = ?", 1))
 	if err != nil {
-		if stdErrors.Is(err, orm.ErrNotFound) {
+		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.WrapDbError(ctx, err, "查询 LLM 安全配置失败")

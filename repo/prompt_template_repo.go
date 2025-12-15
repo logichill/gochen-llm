@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	stdErrors "errors"
 	"fmt"
 
 	"gochen-llm/entity"
@@ -51,7 +50,7 @@ func (r *promptTemplateRepoImpl) GetByID(ctx context.Context, id int64) (*entity
 	var tmpl entity.PromptTemplate
 	err := r.templateModel.model(r.orm).First(ctx, &tmpl, orm.WithWhere("id = ?", id))
 	if err != nil {
-		if stdErrors.Is(err, orm.ErrNotFound) {
+		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.WrapDbError(ctx, err, "查询提示词模板失败")
@@ -79,11 +78,11 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 		orm.WithWhere("name = ? AND scope = ? AND scope_id = ?", tmpl.Name, tmpl.Scope, tmpl.ScopeID),
 		orm.WithForUpdate(),
 	)
-	if err != nil && !stdErrors.Is(err, orm.ErrNotFound) {
+	if err != nil && !errors.IsNotFound(err) {
 		return errors.WrapDbError(ctx, err, "查询提示词模板失败")
 	}
 
-	if stdErrors.Is(err, orm.ErrNotFound) {
+	if errors.IsNotFound(err) {
 		if tmpl.Version <= 0 {
 			tmpl.Version = 1
 		}
@@ -140,7 +139,7 @@ func (r *promptTemplateRepoImpl) FindEffective(ctx context.Context, name string,
 		orm.WithOrderBy("id", false),
 	)
 	if err != nil {
-		if stdErrors.Is(err, orm.ErrNotFound) {
+		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.WrapDbError(ctx, err, "查询提示词模板失败")
@@ -198,7 +197,7 @@ func (r *promptTemplateRepoImpl) GetVersion(ctx context.Context, templateID int6
 		orm.WithWhere("template_id = ? AND version = ?", templateID, version),
 	)
 	if err != nil {
-		if stdErrors.Is(err, orm.ErrNotFound) {
+		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.WrapDbError(ctx, err, "查询提示词版本失败")
@@ -208,7 +207,7 @@ func (r *promptTemplateRepoImpl) GetVersion(ctx context.Context, templateID int6
 
 func (r *promptTemplateRepoImpl) SaveABTest(ctx context.Context, test *entity.ABTest) error {
 	if test == nil {
-		return errors.NewError(errors.ErrCodeInvalidInput, "A/B 测试不能为空")
+		return errors.NewError(errors.InvalidInput, "A/B 测试不能为空")
 	}
 	if err := r.abTestModel.model(r.orm).Create(ctx, test); err != nil {
 		return errors.WrapDbError(ctx, err, "保存 A/B 测试失败")
@@ -218,7 +217,7 @@ func (r *promptTemplateRepoImpl) SaveABTest(ctx context.Context, test *entity.AB
 
 func (r *promptTemplateRepoImpl) UpdateABTest(ctx context.Context, test *entity.ABTest) error {
 	if test == nil || test.ID == 0 {
-		return errors.NewError(errors.ErrCodeInvalidInput, "A/B 测试 ID 无效")
+		return errors.NewError(errors.InvalidInput, "A/B 测试 ID 无效")
 	}
 	if err := r.abTestModel.model(r.orm).Save(ctx, test, orm.WithWhere("id = ?", test.ID)); err != nil {
 		return errors.WrapDbError(ctx, err, "更新 A/B 测试失败")
@@ -228,12 +227,12 @@ func (r *promptTemplateRepoImpl) UpdateABTest(ctx context.Context, test *entity.
 
 func (r *promptTemplateRepoImpl) GetABTest(ctx context.Context, id int64) (*entity.ABTest, error) {
 	if id <= 0 {
-		return nil, errors.NewError(errors.ErrCodeInvalidInput, "A/B 测试 ID 无效")
+		return nil, errors.NewError(errors.InvalidInput, "A/B 测试 ID 无效")
 	}
 	var test entity.ABTest
 	err := r.abTestModel.model(r.orm).First(ctx, &test, orm.WithWhere("id = ?", id))
 	if err != nil {
-		if stdErrors.Is(err, orm.ErrNotFound) {
+		if errors.IsNotFound(err) {
 			return nil, nil
 		}
 		return nil, errors.WrapDbError(ctx, err, "查询 A/B 测试失败")

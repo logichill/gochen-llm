@@ -10,7 +10,7 @@ func AdminOnlyMiddleware() httpx.Middleware {
 	return func(ctx httpx.IHttpContext, next func() error) error {
 		reqCtx := ctx.GetContext()
 		if reqCtx == nil || reqCtx.GetUserID() == 0 {
-			return errors.NewError(errors.ErrCodeUnauthorized, "用户未认证")
+			return errors.NewError(errors.Unauthorized, "用户未认证")
 		}
 		return next()
 	}
