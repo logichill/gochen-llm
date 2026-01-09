@@ -6,8 +6,8 @@ import "time"
 // 主要用于安全审计与问题排查，记录用户、资源、请求与响应等信息。
 type AuditLog struct {
 	ID           int64     `gorm:"primaryKey;autoIncrement"`          // 主键 ID
-	UserID       int64     `gorm:"index:idx_user_id"`                 // 触发调用的用户 ID
-	Action       string    `gorm:"size:50;not null;index:idx_action"` // 操作类型，如 "chat"、"admin.update_config"
+	UserID       int64     `gorm:"index:idx_llm_audit_logs_user_id"`   // 触发调用的用户 ID
+	Action       string    `gorm:"size:50;not null;index:idx_llm_audit_logs_action"` // 操作类型，如 "chat"、"admin.update_config"
 	ResourceType string    `gorm:"size:50"`                           // 资源类型，如 "prompt"、"provider_config"
 	ResourceID   int64     `gorm:""`                                  // 资源 ID
 	RequestJSON  string    `gorm:"type:text"`                         // 请求内容序列化（含参数、上下文）
@@ -16,7 +16,7 @@ type AuditLog struct {
 	UserAgent    string    `gorm:"type:text"`                         // 客户端 User-Agent
 	Status       string    `gorm:"size:20"`                           // 结果状态，如 "success"、"error"
 	ErrorMessage string    `gorm:"type:text"`                         // 错误信息（如有）
-	CreatedAt    time.Time `gorm:"autoCreateTime;index:idx_created_at"` // 创建时间
+	CreatedAt    time.Time `gorm:"autoCreateTime;index:idx_llm_audit_logs_created_at"` // 创建时间
 }
 
 func (AuditLog) TableName() string {
@@ -27,12 +27,12 @@ func (AuditLog) TableName() string {
 // 用于存储单次调用的 Provider、模型、token 用量、时延、成本与结果状态等信息。
 type Metrics struct {
 	ID             int64     `gorm:"primaryKey;autoIncrement"`             // 主键 ID
-	Provider       string    `gorm:"size:50;not null;index:idx_provider"`  // Provider 名称
+	Provider       string    `gorm:"size:50;not null;index:idx_llm_metrics_provider"`  // Provider 名称
 	Model          string    `gorm:"size:100"`                              // 模型名称
-	UserID         int64     `gorm:"index:idx_user_id"`                    // 用户 ID
-	ABTestID       int64     `gorm:"index:idx_ab_test_id"`                 // A/B 测试 ID
+	UserID         int64     `gorm:"index:idx_llm_metrics_user_id"`        // 用户 ID
+	ABTestID       int64     `gorm:"index:idx_llm_metrics_ab_test_id"`     // A/B 测试 ID
 	ABVariant      string    `gorm:"size:5"`                               // A/B 测试变体标识，如 "A"/"B"
-	PromptTemplate int64     `gorm:"index:idx_prompt_template_id"`         // 使用的提示词模板 ID
+	PromptTemplate int64     `gorm:"index:idx_llm_metrics_prompt_template_id"` // 使用的提示词模板 ID
 	RequestTokens  int       `gorm:""`                                     // 请求 token 数
 	ResponseTokens int       `gorm:""`                                     // 响应 token 数
 	TotalTokens    int       `gorm:""`                                     // 总 token 数
@@ -41,7 +41,7 @@ type Metrics struct {
 	Status         string    `gorm:"size:20"`                              // 调用状态，如 "success"/"error"
 	ErrorType      string    `gorm:"size:50"`                              // 错误类型，如超时、配额不足等
 	Outcome        string    `gorm:"size:50"`                              // 额外事件，如 conversion
-	CreatedAt      time.Time `gorm:"autoCreateTime;index:idx_created_at"` // 创建时间
+	CreatedAt      time.Time `gorm:"autoCreateTime;index:idx_llm_metrics_created_at"` // 创建时间
 }
 
 func (Metrics) TableName() string {

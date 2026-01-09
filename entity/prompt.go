@@ -23,16 +23,16 @@ type PromptTemplate struct {
 	// Name 模板名称
 	// 在同一作用域（Scope + ScopeID）下应唯一。
 	// 用于在代码中引用特定的 Prompt。
-	Name string `gorm:"size:200;not null;index:idx_name_scope,priority:1"`
+	Name string `gorm:"size:200;not null;index:idx_llm_prompt_templates_name_scope,priority:1"`
 
 	// Scope 作用域类型
 	// 取值：global (全局), org (组织), project (项目), user (用户)
 	// 决定了模板的可见性和生效范围。
-	Scope PromptScope `gorm:"size:20;not null;index:idx_name_scope,priority:2"`
+	Scope PromptScope `gorm:"size:20;not null;index:idx_llm_prompt_templates_name_scope,priority:2"`
 
 	// ScopeID 作用域实体 ID
 	// 根据 Scope 的不同，分别对应 0 (Global), OrgID, ProjectID, UserID。
-	ScopeID int64 `gorm:"not null;default:0;index:idx_name_scope,priority:3"`
+	ScopeID int64 `gorm:"not null;default:0;index:idx_llm_prompt_templates_name_scope,priority:3"`
 
 	// Category 分类
 	// 用于 UI 分组或业务逻辑分类（如 "chat", "summary", "extraction"）。
@@ -63,7 +63,7 @@ type PromptTemplate struct {
 
 	// Enabled 是否启用
 	// false 表示逻辑删除或暂时禁用。
-	Enabled bool `gorm:"not null;default:true;index:idx_enabled"`
+	Enabled bool `gorm:"not null;default:true;index:idx_llm_prompt_templates_enabled"`
 
 	// TagsJSON 标签集合
 	// 存储 JSON 字符串数组，用于灵活检索和分类。
@@ -85,8 +85,8 @@ func (PromptTemplate) TableName() string {
 // PromptVersion 提示词版本记录
 type PromptVersion struct {
 	ID         int64  `gorm:"primaryKey;autoIncrement"`                      // 版本记录主键 ID
-	TemplateID int64  `gorm:"index:idx_template_version,priority:1"`         // 关联的模板 ID
-	Version    int    `gorm:"not null;index:idx_template_version,priority:2"` // 版本号
+	TemplateID int64  `gorm:"index:idx_llm_prompt_versions_template_version,priority:1"` // 关联的模板 ID
+	Version    int    `gorm:"not null;index:idx_llm_prompt_versions_template_version,priority:2"` // 版本号
 	Content    string `gorm:"type:text;not null"`                            // 版本对应的模板内容
 
 	VariablesJSON string    `gorm:"type:text"`       // 版本对应的变量定义 JSON
@@ -106,7 +106,7 @@ type ABTest struct {
 	TemplateAID  int64     `gorm:"not null"`                                          // 变体 A 使用的模板 ID
 	TemplateBID  int64     `gorm:"not null"`                                          // 变体 B 使用的模板 ID
 	TrafficSplit int       `gorm:"not null;default:50"`                               // 流量分配比例（A 百分比）
-	Status       string    `gorm:"size:20;not null;default:'running';index:idx_status"` // 状态：running/stopped 等
+	Status       string    `gorm:"size:20;not null;default:'running';index:idx_llm_ab_tests_status"` // 状态：running/stopped 等
 	StartAt      time.Time `gorm:""`                                                  // 开始时间
 	EndAt        time.Time `gorm:""`                                                  // 结束时间
 	ResultJSON   string    `gorm:"type:text"`                                         // 统计与分析结果 JSON
