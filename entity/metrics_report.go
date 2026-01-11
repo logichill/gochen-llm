@@ -42,8 +42,8 @@ type VariantMetricsReport struct {
 // ABSignificanceReport 表示 A/B 测试的显著性分析结果
 // 包含各变体指标、p 值、置信度、胜出方与提升比例等信息。
 type ABSignificanceReport struct {
-	ABTestID   int64                 `json:"ab_test_id"`        // A/B 测试 ID
-	Outcome    string                `json:"outcome,omitempty"` // 关注的结果事件名称
+	ABTestID   int64                 `json:"ab_test_id"`          // A/B 测试 ID
+	Outcome    string                `json:"outcome,omitempty"`   // 关注的结果事件名称
 	VariantA   *VariantMetricsReport `json:"variant_a,omitempty"` // 变体 A 指标
 	VariantB   *VariantMetricsReport `json:"variant_b,omitempty"` // 变体 B 指标
 	PValue     float64               `json:"p_value"`             // p 值

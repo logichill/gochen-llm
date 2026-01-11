@@ -84,13 +84,13 @@ func (PromptTemplate) TableName() string {
 
 // PromptVersion 提示词版本记录
 type PromptVersion struct {
-	ID         int64  `gorm:"primaryKey;autoIncrement"`                      // 版本记录主键 ID
-	TemplateID int64  `gorm:"index:idx_llm_prompt_versions_template_version,priority:1"` // 关联的模板 ID
+	ID         int64  `gorm:"primaryKey;autoIncrement"`                                           // 版本记录主键 ID
+	TemplateID int64  `gorm:"index:idx_llm_prompt_versions_template_version,priority:1"`          // 关联的模板 ID
 	Version    int    `gorm:"not null;index:idx_llm_prompt_versions_template_version,priority:2"` // 版本号
-	Content    string `gorm:"type:text;not null"`                            // 版本对应的模板内容
+	Content    string `gorm:"type:text;not null"`                                                 // 版本对应的模板内容
 
-	VariablesJSON string    `gorm:"type:text"`       // 版本对应的变量定义 JSON
-	ChangeLog     string    `gorm:"type:text"`       // 版本变更说明
+	VariablesJSON string    `gorm:"type:text"` // 版本对应的变量定义 JSON
+	ChangeLog     string    `gorm:"type:text"` // 版本变更说明
 	CreatedBy     int64     // 创建人用户 ID
 	CreatedAt     time.Time `gorm:"autoCreateTime"` // 创建时间
 }
@@ -101,17 +101,17 @@ func (PromptVersion) TableName() string {
 
 // ABTest 提示词 A/B 测试配置
 type ABTest struct {
-	ID           int64     `gorm:"primaryKey;autoIncrement"`                          // A/B 测试主键 ID
-	Name         string    `gorm:"size:200;not null"`                                 // 测试名称
-	TemplateAID  int64     `gorm:"not null"`                                          // 变体 A 使用的模板 ID
-	TemplateBID  int64     `gorm:"not null"`                                          // 变体 B 使用的模板 ID
-	TrafficSplit int       `gorm:"not null;default:50"`                               // 流量分配比例（A 百分比）
+	ID           int64     `gorm:"primaryKey;autoIncrement"`                                         // A/B 测试主键 ID
+	Name         string    `gorm:"size:200;not null"`                                                // 测试名称
+	TemplateAID  int64     `gorm:"not null"`                                                         // 变体 A 使用的模板 ID
+	TemplateBID  int64     `gorm:"not null"`                                                         // 变体 B 使用的模板 ID
+	TrafficSplit int       `gorm:"not null;default:50"`                                              // 流量分配比例（A 百分比）
 	Status       string    `gorm:"size:20;not null;default:'running';index:idx_llm_ab_tests_status"` // 状态：running/stopped 等
-	StartAt      time.Time `gorm:""`                                                  // 开始时间
-	EndAt        time.Time `gorm:""`                                                  // 结束时间
-	ResultJSON   string    `gorm:"type:text"`                                         // 统计与分析结果 JSON
-	CreatedAt    time.Time `gorm:"autoCreateTime"`                                    // 创建时间
-	UpdatedAt    time.Time `gorm:"autoUpdateTime"`                                    // 更新时间
+	StartAt      time.Time `gorm:""`                                                                 // 开始时间
+	EndAt        time.Time `gorm:""`                                                                 // 结束时间
+	ResultJSON   string    `gorm:"type:text"`                                                        // 统计与分析结果 JSON
+	CreatedAt    time.Time `gorm:"autoCreateTime"`                                                   // 创建时间
+	UpdatedAt    time.Time `gorm:"autoUpdateTime"`                                                   // 更新时间
 }
 
 func (ABTest) TableName() string {
@@ -134,19 +134,19 @@ const (
 
 // StoryWorldMetadata 故事世界的元数据结构（存储在 MetadataJSON 中）
 type StoryWorldMetadata struct {
-	DisplayName string   `json:"display_name"` // 展示名称，如 "森林大冒险"
-	WorldKey    string   `json:"world_key"`    // 唯一标识，如 "forest"
-	Theme       string   `json:"theme"`        // 主题标签
-	Description string   `json:"description"`  // 世界观描述
-	Config      any      `json:"config"`       // NPC/地点等额外配置
-	IconURL     string   `json:"icon_url"`     // 图标 URL
-	SortOrder   int      `json:"sort_order"`   // 排序权重
+	DisplayName string `json:"display_name"` // 展示名称，如 "森林大冒险"
+	WorldKey    string `json:"world_key"`    // 唯一标识，如 "forest"
+	Theme       string `json:"theme"`        // 主题标签
+	Description string `json:"description"`  // 世界观描述
+	Config      any    `json:"config"`       // NPC/地点等额外配置
+	IconURL     string `json:"icon_url"`     // 图标 URL
+	SortOrder   int    `json:"sort_order"`   // 排序权重
 }
 
 // UserPreferencesMetadata 用户偏好的元数据结构（原 GrowthProfile，存储在 MetadataJSON 中）
 type UserPreferencesMetadata struct {
-	Age         int      `json:"age"`         // 年龄
-	Grade       string   `json:"grade"`       // 年级或学段
+	Age         int      `json:"age"`          // 年龄
+	Grade       string   `json:"grade"`        // 年级或学段
 	FocusAreas  []string `json:"focus_areas"`  // 希望强化的方向
 	AvoidThemes []string `json:"avoid_themes"` // 希望回避的主题
 }
