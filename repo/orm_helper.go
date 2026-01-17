@@ -9,8 +9,8 @@ type ormModel struct {
 func newOrmModel(model any, table string) ormModel {
 	return ormModel{
 		meta: &orm.ModelMeta{
-			Model: model,
-			Table: table,
+			ModelFactory: orm.NewModelFactoryFromSample(model),
+			Table:        table,
 		},
 	}
 }

@@ -64,16 +64,3 @@ func (m *Module) RegisterProjections(container di.IContainer) (*projection.Proje
 	_ = container
 	return nil, nil, nil
 }
-
-// Facade 兼容方法
-func (m *Module) Providers(container di.IContainer) error {
-	return m.RegisterProviders(container)
-}
-
-func (m *Module) EventHandlers(ctx context.Context, eventBus bus.IEventBus, container di.IContainer) error {
-	return m.RegisterEventHandlers(ctx, eventBus, container)
-}
-
-func (m *Module) Projections(container di.IContainer) (*projection.ProjectionManager, []string, error) {
-	return m.RegisterProjections(container)
-}
