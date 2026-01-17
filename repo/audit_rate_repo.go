@@ -59,7 +59,11 @@ func (r *auditLogRepoImpl) Save(ctx context.Context, log *entity.AuditLog) error
 	if log == nil {
 		return errorx.NewError(errorx.InvalidInput, "audit log 不能为空")
 	}
-	if err := r.model.model(r.orm).Create(ctx, log); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建审计日志 model 失败")
+	}
+	if err := model.Create(ctx, log); err != nil {
 		return errorx.WrapDbError(ctx, err, "保存审计日志失败")
 	}
 	return nil
@@ -67,7 +71,10 @@ func (r *auditLogRepoImpl) Save(ctx context.Context, log *entity.AuditLog) error
 
 func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limit, offset int) ([]*entity.AuditLog, int64, error) {
 	filterOptions := buildAuditOptions(filter)
-	model := r.model.model(r.orm)
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, 0, errorx.WrapDbError(ctx, err, "创建审计日志 model 失败")
+	}
 
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -116,7 +123,10 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 		}
 	}()
 
-	model := r.model.model(session)
+	model, err := r.model.model(session)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建限流 model 失败")
+	}
 
 	var result entity.RateLimit
 	err = model.First(ctx, &result,
@@ -168,7 +178,11 @@ func (r *rateLimitRepoImpl) ListRecent(ctx context.Context, resourceType string,
 	)
 
 	var list []*entity.RateLimit
-	if err := r.model.model(r.orm).Find(ctx, &list, opts...); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建限流 model 失败")
+	}
+	if err := model.Find(ctx, &list, opts...); err != nil {
 		return nil, errorx.WrapDbError(ctx, err, "查询限流窗口失败")
 	}
 	return list, nil
@@ -186,7 +200,11 @@ func (r *rateLimitRepoImpl) SumSince(ctx context.Context, resourceType string, s
 	var row struct {
 		Total int64 `json:"total"`
 	}
-	if err := r.model.model(r.orm).First(ctx, &row, append(opts, orm.WithSelect("COALESCE(SUM(request_count), 0) as total"))...); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return 0, errorx.WrapDbError(ctx, err, "创建限流 model 失败")
+	}
+	if err := model.First(ctx, &row, append(opts, orm.WithSelect("COALESCE(SUM(request_count), 0) as total"))...); err != nil {
 		return 0, errorx.WrapDbError(ctx, err, "统计限流请求数失败")
 	}
 	return row.Total, nil

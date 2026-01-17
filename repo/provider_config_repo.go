@@ -32,7 +32,11 @@ func NewProviderConfigRepo(o orm.IOrm) ProviderConfigRepo {
 
 func (r *providerConfigRepoImpl) ListAll(ctx context.Context) ([]*entity.ProviderConfig, error) {
 	var cfgs []*entity.ProviderConfig
-	if err := r.model.model(r.orm).Find(ctx, &cfgs,
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 LLM provider model 失败")
+	}
+	if err := model.Find(ctx, &cfgs,
 		orm.WithOrderBy("priority", false),
 		orm.WithOrderBy("id", false),
 	); err != nil {
@@ -53,7 +57,10 @@ func (r *providerConfigRepoImpl) ReplaceAll(ctx context.Context, configs []*enti
 		}
 	}()
 
-	model := r.model.model(session)
+	model, err := r.model.model(session)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 LLM provider model 失败")
+	}
 
 	if err := model.Delete(ctx, orm.WithWhere("1 = 1")); err != nil {
 		return errorx.WrapDbError(ctx, err, "清空 LLM provider 配置失败")
@@ -87,7 +94,10 @@ func (r *providerConfigRepoImpl) UpdatePricing(ctx context.Context, updates []en
 		}
 	}()
 
-	model := r.model.model(session)
+	model, err := r.model.model(session)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 LLM provider model 失败")
+	}
 
 	for _, up := range updates {
 		if up.ID <= 0 {

@@ -48,7 +48,11 @@ func NewPromptTemplateRepo(o orm.IOrm) PromptTemplateRepo {
 
 func (r *promptTemplateRepoImpl) GetByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 	var tmpl entity.PromptTemplate
-	err := r.templateModel.model(r.orm).First(ctx, &tmpl, orm.WithWhere("id = ?", id))
+	model, err := r.templateModel.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建提示词模板 model 失败")
+	}
+	err = model.First(ctx, &tmpl, orm.WithWhere("id = ?", id))
 	if err != nil {
 		if errorx.IsNotFound(err) {
 			return nil, nil
@@ -71,7 +75,10 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 		}
 	}()
 
-	model := r.templateModel.model(session)
+	model, err := r.templateModel.model(session)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建提示词模板 model 失败")
+	}
 
 	var existing entity.PromptTemplate
 	err = model.First(ctx, &existing,
@@ -131,7 +138,11 @@ func (r *promptTemplateRepoImpl) FindEffective(ctx context.Context, name string,
 	)
 
 	var tmpl entity.PromptTemplate
-	err := r.templateModel.model(r.orm).First(ctx, &tmpl,
+	model, err := r.templateModel.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建提示词模板 model 失败")
+	}
+	err = model.First(ctx, &tmpl,
 		orm.WithWhere("name = ? AND enabled = ?", name, true),
 		orm.WithWhere("(scope = ? AND scope_id = 0) OR (scope = ? AND scope_id = ?)", entity.PromptScopeGlobal, scope, scopeID),
 		orm.WithOrderBy(scopeOrder, false),
@@ -172,7 +183,11 @@ func (r *promptTemplateRepoImpl) List(ctx context.Context, filter PromptFilter) 
 	)
 
 	var list []*entity.PromptTemplate
-	if err := r.templateModel.model(r.orm).Find(ctx, &list, opts...); err != nil {
+	model, err := r.templateModel.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建提示词模板 model 失败")
+	}
+	if err := model.Find(ctx, &list, opts...); err != nil {
 		return nil, errorx.WrapDbError(ctx, err, "查询提示词模板列表失败")
 	}
 	return list, nil
@@ -185,7 +200,11 @@ func (r *promptTemplateRepoImpl) SaveVersion(ctx context.Context, version *entit
 	if version.Version == 0 {
 		version.Version = 1
 	}
-	if err := r.versionModel.model(r.orm).Create(ctx, version); err != nil {
+	model, err := r.versionModel.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建提示词版本 model 失败")
+	}
+	if err := model.Create(ctx, version); err != nil {
 		return errorx.WrapDbError(ctx, err, "保存提示词版本失败")
 	}
 	return nil
@@ -193,7 +212,11 @@ func (r *promptTemplateRepoImpl) SaveVersion(ctx context.Context, version *entit
 
 func (r *promptTemplateRepoImpl) GetVersion(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error) {
 	var v entity.PromptVersion
-	err := r.versionModel.model(r.orm).First(ctx, &v,
+	model, err := r.versionModel.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建提示词版本 model 失败")
+	}
+	err = model.First(ctx, &v,
 		orm.WithWhere("template_id = ? AND version = ?", templateID, version),
 	)
 	if err != nil {
@@ -209,7 +232,11 @@ func (r *promptTemplateRepoImpl) SaveABTest(ctx context.Context, test *entity.AB
 	if test == nil {
 		return errorx.NewError(errorx.InvalidInput, "A/B 测试不能为空")
 	}
-	if err := r.abTestModel.model(r.orm).Create(ctx, test); err != nil {
+	model, err := r.abTestModel.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 A/B 测试 model 失败")
+	}
+	if err := model.Create(ctx, test); err != nil {
 		return errorx.WrapDbError(ctx, err, "保存 A/B 测试失败")
 	}
 	return nil
@@ -219,7 +246,11 @@ func (r *promptTemplateRepoImpl) UpdateABTest(ctx context.Context, test *entity.
 	if test == nil || test.ID == 0 {
 		return errorx.NewError(errorx.InvalidInput, "A/B 测试 ID 无效")
 	}
-	if err := r.abTestModel.model(r.orm).Save(ctx, test, orm.WithWhere("id = ?", test.ID)); err != nil {
+	model, err := r.abTestModel.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 A/B 测试 model 失败")
+	}
+	if err := model.Save(ctx, test, orm.WithWhere("id = ?", test.ID)); err != nil {
 		return errorx.WrapDbError(ctx, err, "更新 A/B 测试失败")
 	}
 	return nil
@@ -230,7 +261,11 @@ func (r *promptTemplateRepoImpl) GetABTest(ctx context.Context, id int64) (*enti
 		return nil, errorx.NewError(errorx.InvalidInput, "A/B 测试 ID 无效")
 	}
 	var test entity.ABTest
-	err := r.abTestModel.model(r.orm).First(ctx, &test, orm.WithWhere("id = ?", id))
+	model, err := r.abTestModel.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 A/B 测试 model 失败")
+	}
+	err = model.First(ctx, &test, orm.WithWhere("id = ?", id))
 	if err != nil {
 		if errorx.IsNotFound(err) {
 			return nil, nil

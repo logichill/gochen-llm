@@ -34,7 +34,11 @@ func (r *metricsRepoImpl) Save(ctx context.Context, m *entity.Metrics) error {
 	if m == nil {
 		return errorx.NewError(errorx.InvalidInput, "metrics 不能为空")
 	}
-	if err := r.model.model(r.orm).Create(ctx, m); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 metrics model 失败")
+	}
+	if err := model.Create(ctx, m); err != nil {
 		return errorx.WrapDbError(ctx, err, "保存 LLM 指标失败")
 	}
 	return nil
@@ -57,7 +61,11 @@ func (r *metricsRepoImpl) Aggregate(ctx context.Context, filter entity.MetricsFi
 
 	opts := append(buildMetricsOptions(filter), orm.WithSelect(selects...))
 
-	if err := r.model.model(r.orm).First(ctx, report, opts...); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 metrics model 失败")
+	}
+	if err := model.First(ctx, report, opts...); err != nil {
 		return nil, errorx.WrapDbError(ctx, err, "汇总 LLM 指标失败")
 	}
 
@@ -97,7 +105,11 @@ func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.
 
 	queryOpts := append(opts, orm.WithSelect(selects...), orm.WithGroupBy("ab_variant"))
 
-	if err := r.model.model(r.orm).Find(ctx, &rows, queryOpts...); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 metrics model 失败")
+	}
+	if err := model.Find(ctx, &rows, queryOpts...); err != nil {
 		return nil, errorx.WrapDbError(ctx, err, "按变体汇总 LLM 指标失败")
 	}
 
@@ -193,7 +205,11 @@ func (r *metricsRepoImpl) queryVariantCount(ctx context.Context, filter entity.M
 		orm.WithGroupBy("ab_variant"),
 	)
 
-	if err := r.model.model(r.orm).Find(ctx, &rows, opts...); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 metrics model 失败")
+	}
+	if err := model.Find(ctx, &rows, opts...); err != nil {
 		return nil, errorx.WrapDbError(ctx, err, "统计 A/B 指标失败")
 	}
 
@@ -257,7 +273,10 @@ func maxFloat(a, b float64) float64 {
 
 func (r *metricsRepoImpl) List(ctx context.Context, filter entity.MetricsFilter, limit, offset int) ([]*entity.Metrics, int64, error) {
 	opts := buildMetricsOptions(filter)
-	model := r.model.model(r.orm)
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, 0, errorx.WrapDbError(ctx, err, "创建 metrics model 失败")
+	}
 
 	if limit <= 0 || limit > 500 {
 		limit = 50

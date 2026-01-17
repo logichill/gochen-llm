@@ -15,7 +15,7 @@ func newOrmModel(model any, table string) ormModel {
 	}
 }
 
-func (m ormModel) model(o orm.IOrm) orm.IModel {
+func (m ormModel) model(o orm.IOrm) (orm.IModel, error) {
 	return o.Model(m.meta)
 }
 

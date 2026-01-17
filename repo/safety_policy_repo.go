@@ -28,7 +28,11 @@ func NewSafetyPolicyRepo(o orm.IOrm) SafetyPolicyRepo {
 
 func (r *safetyPolicyRepoImpl) GetActive(ctx context.Context) (*entity.SafetyPolicy, error) {
 	var policy entity.SafetyPolicy
-	err := r.model.model(r.orm).First(ctx, &policy, orm.WithWhere("id = ?", 1))
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 LLM safety policy model 失败")
+	}
+	err = model.First(ctx, &policy, orm.WithWhere("id = ?", 1))
 	if err != nil {
 		if errorx.IsNotFound(err) {
 			return nil, nil
@@ -43,7 +47,11 @@ func (r *safetyPolicyRepoImpl) Save(ctx context.Context, policy *entity.SafetyPo
 		return nil
 	}
 	policy.ID = 1
-	if err := r.model.model(r.orm).Save(ctx, policy); err != nil {
+	model, err := r.model.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 LLM safety policy model 失败")
+	}
+	if err := model.Save(ctx, policy); err != nil {
 		return errorx.WrapDbError(ctx, err, "保存 LLM 安全配置失败")
 	}
 	return nil

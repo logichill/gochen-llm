@@ -33,7 +33,11 @@ func NewConversationRepo(o orm.IOrm) ConversationRepo {
 }
 
 func (r *conversationRepoImpl) CreateConversation(ctx context.Context, conv *entity.Conversation) error {
-	if err := r.conversationModel.model(r.orm).Create(ctx, conv); err != nil {
+	model, err := r.conversationModel.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 conversation model 失败")
+	}
+	if err := model.Create(ctx, conv); err != nil {
 		return errorx.WrapDbError(ctx, err, "创建会话失败")
 	}
 	return nil
@@ -41,7 +45,11 @@ func (r *conversationRepoImpl) CreateConversation(ctx context.Context, conv *ent
 
 func (r *conversationRepoImpl) GetConversation(ctx context.Context, id int64) (*entity.Conversation, error) {
 	var conv entity.Conversation
-	err := r.conversationModel.model(r.orm).First(ctx, &conv, orm.WithWhere("id = ?", id))
+	model, err := r.conversationModel.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 conversation model 失败")
+	}
+	err = model.First(ctx, &conv, orm.WithWhere("id = ?", id))
 	if err != nil {
 		if errorx.IsNotFound(err) {
 			return nil, nil
@@ -52,14 +60,22 @@ func (r *conversationRepoImpl) GetConversation(ctx context.Context, id int64) (*
 }
 
 func (r *conversationRepoImpl) UpdateConversation(ctx context.Context, conv *entity.Conversation) error {
-	if err := r.conversationModel.model(r.orm).Save(ctx, conv, orm.WithWhere("id = ?", conv.ID)); err != nil {
+	model, err := r.conversationModel.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 conversation model 失败")
+	}
+	if err := model.Save(ctx, conv, orm.WithWhere("id = ?", conv.ID)); err != nil {
 		return errorx.WrapDbError(ctx, err, "更新会话失败")
 	}
 	return nil
 }
 
 func (r *conversationRepoImpl) AddMessage(ctx context.Context, msg *entity.Message) error {
-	if err := r.messageModel.model(r.orm).Create(ctx, msg); err != nil {
+	model, err := r.messageModel.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 message model 失败")
+	}
+	if err := model.Create(ctx, msg); err != nil {
 		return errorx.WrapDbError(ctx, err, "添加消息失败")
 	}
 	return nil
@@ -70,7 +86,11 @@ func (r *conversationRepoImpl) GetMessages(ctx context.Context, conversationID i
 		limit = 50
 	}
 	var messages []*entity.Message
-	if err := r.messageModel.model(r.orm).Find(ctx, &messages,
+	model, err := r.messageModel.model(r.orm)
+	if err != nil {
+		return nil, errorx.WrapDbError(ctx, err, "创建 message model 失败")
+	}
+	if err := model.Find(ctx, &messages,
 		orm.WithWhere("conversation_id = ?", conversationID),
 		orm.WithOrderBy("created_at", true),
 		orm.WithLimit(limit),
@@ -85,8 +105,13 @@ func (r *conversationRepoImpl) TrimMessages(ctx context.Context, conversationID 
 		keepLast = 100
 	}
 
+	model, err := r.messageModel.model(r.orm)
+	if err != nil {
+		return errorx.WrapDbError(ctx, err, "创建 message model 失败")
+	}
+
 	var ids []int64
-	err := r.messageModel.model(r.orm).Find(ctx, &ids,
+	err = model.Find(ctx, &ids,
 		orm.WithSelect("id"),
 		orm.WithWhere("conversation_id = ?", conversationID),
 		orm.WithOrderBy("created_at", true),
@@ -99,7 +124,7 @@ func (r *conversationRepoImpl) TrimMessages(ctx context.Context, conversationID 
 		return nil
 	}
 
-	if err := r.messageModel.model(r.orm).Delete(ctx, orm.WithWhere("id IN ?", ids)); err != nil {
+	if err := model.Delete(ctx, orm.WithWhere("id IN ?", ids)); err != nil {
 		return errorx.WrapDbError(ctx, err, "压缩会话消息失败")
 	}
 	return nil
