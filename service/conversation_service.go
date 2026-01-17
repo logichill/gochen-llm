@@ -7,7 +7,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errors"
+	"gochen/runtime/errorx"
 )
 
 // ConversationService 会话服务
@@ -31,7 +31,7 @@ func NewConversationService(repo repo.ConversationRepo) ConversationService {
 
 func (s *conversationServiceImpl) CreateConversation(ctx context.Context, userID int64, metadata map[string]any) (*entity.Conversation, error) {
 	if userID <= 0 {
-		return nil, errors.NewError(errors.Validation, "userID 无效")
+		return nil, errorx.NewError(errorx.Validation, "userID 无效")
 	}
 
 	conv := &entity.Conversation{
@@ -67,7 +67,7 @@ func (s *conversationServiceImpl) GetConversation(ctx context.Context, conversat
 
 func (s *conversationServiceImpl) AddMessage(ctx context.Context, conversationID int64, msg *entity.Message) error {
 	if msg == nil {
-		return errors.NewError(errors.Validation, "消息不能为空")
+		return errorx.NewError(errorx.Validation, "消息不能为空")
 	}
 	msg.ConversationID = conversationID
 	return s.repo.AddMessage(ctx, msg)
@@ -113,7 +113,7 @@ func (s *conversationServiceImpl) CreateBranch(ctx context.Context, conversation
 		return nil, err
 	}
 	if base == nil {
-		return nil, errors.NewError(errors.NotFound, "会话不存在")
+		return nil, errorx.NewError(errorx.NotFound, "会话不存在")
 	}
 
 	meta := map[string]any{}

@@ -6,9 +6,9 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/router"
 	"gochen-llm/service"
-	"gochen/di"
 	"gochen/eventing/bus"
 	"gochen/eventing/projection"
+	"gochen/runtime/di"
 )
 
 // Module LLM 通用能力模块

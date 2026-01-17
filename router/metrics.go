@@ -6,7 +6,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	httpx "gochen/http"
+	httpx "gochen/httpx"
 )
 
 // MetricsRoutes 提供指标看板接口（时间窗口聚合与原始日志分页）
@@ -25,7 +25,7 @@ func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) {
 	api.GET("/significance", r.significance)
 }
 
-func (r *MetricsRoutes) aggregate(ctx httpx.IHttpContext) error {
+func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
 	}
@@ -88,7 +88,7 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IHttpContext) error {
 	return ctx.JSON(200, map[string]any{"report": report})
 }
 
-func (r *MetricsRoutes) list(ctx httpx.IHttpContext) error {
+func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
 	}
@@ -160,7 +160,7 @@ func (r *MetricsRoutes) list(ctx httpx.IHttpContext) error {
 	})
 }
 
-func (r *MetricsRoutes) significance(ctx httpx.IHttpContext) error {
+func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
 	}

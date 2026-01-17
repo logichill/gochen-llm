@@ -1,6 +1,6 @@
 package repo
 
-import "gochen/data/orm"
+import "gochen/storage/orm"
 
 type ormModel struct {
 	meta *orm.ModelMeta

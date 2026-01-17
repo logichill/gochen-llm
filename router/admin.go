@@ -8,8 +8,8 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
-	httpx "gochen/http"
-	hbasic "gochen/http/basic"
+	httpx "gochen/httpx"
+	hbasic "gochen/httpx/basic"
 )
 
 // LLMAdminRoutes 提供 LLM 模块的管理接口
@@ -21,7 +21,7 @@ type LLMAdminRoutes struct {
 	cfgRepo    repo.ProviderConfigRepo
 	auditRepo  repo.AuditLogRepo
 	rateRepo   repo.RateLimitRepo
-	utils      *hbasic.HttpUtils
+	utils      *hbasic.Utils
 }
 
 func NewLLMAdminRoutes(manager service.ProviderManager, safety repo.SafetyPolicyRepo, metrics repo.MetricsRepo, cfgRepo repo.ProviderConfigRepo, audit repo.AuditLogRepo, rate repo.RateLimitRepo, safetySvc service.SafetyService) *LLMAdminRoutes {
@@ -33,7 +33,7 @@ func NewLLMAdminRoutes(manager service.ProviderManager, safety repo.SafetyPolicy
 		cfgRepo:    cfgRepo,
 		auditRepo:  audit,
 		rateRepo:   rate,
-		utils:      &hbasic.HttpUtils{},
+		utils:      &hbasic.Utils{},
 	}
 }
 
@@ -63,7 +63,7 @@ func (r *LLMAdminRoutes) GetPriority() int {
 	return 305
 }
 
-func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM manager 未配置"})
 	}
@@ -78,7 +78,7 @@ func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IHttpContext) error {
 	})
 }
 
-func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM manager 未配置"})
 	}
@@ -101,7 +101,7 @@ func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IHttpContext) error {
 	return ctx.JSON(200, map[string]string{"message": "ok", "reload": "applied"})
 }
 
-func (r *LLMAdminRoutes) updatePricing(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) updatePricing(ctx httpx.IContext) error {
 	if r.cfgRepo == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM config repo 未配置"})
 	}
@@ -128,7 +128,7 @@ func (r *LLMAdminRoutes) updatePricing(ctx httpx.IHttpContext) error {
 	return ctx.JSON(200, map[string]string{"message": "ok"})
 }
 
-func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM manager 未配置"})
 	}
@@ -140,7 +140,7 @@ func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IHttpContext) error {
 	return ctx.JSON(200, map[string]string{"message": "reloaded"})
 }
 
-func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM safety repo 未配置"})
 	}
@@ -154,7 +154,7 @@ func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IHttpContext) error {
 	})
 }
 
-func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM safety repo 未配置"})
 	}
@@ -185,7 +185,7 @@ func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IHttpContext) error {
 	return ctx.JSON(200, map[string]string{"message": "ok"})
 }
 
-func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM manager 未配置"})
 	}
@@ -200,7 +200,7 @@ func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IHttpContext) error {
 	})
 }
 
-func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
 	}
@@ -242,7 +242,7 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IHttpContext) error {
 }
 
 // markConversion 记录一次转化事件（例如 A/B 测试的成功/点击）
-func (r *LLMAdminRoutes) markConversion(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) markConversion(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
 	}
@@ -282,7 +282,7 @@ func (r *LLMAdminRoutes) markConversion(ctx httpx.IHttpContext) error {
 	return ctx.JSON(200, map[string]string{"message": "ok"})
 }
 
-func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM audit repo 未配置"})
 	}
@@ -339,7 +339,7 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IHttpContext) error {
 	})
 }
 
-func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IHttpContext) error {
+func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return ctx.JSON(500, map[string]string{"message": "LLM safety repo 未配置"})
 	}
@@ -373,7 +373,7 @@ func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IHttpContext) error {
 	})
 }
 
-func (r *LLMAdminRoutes) respondError(ctx httpx.IHttpContext, status int, err error) error {
+func (r *LLMAdminRoutes) respondError(ctx httpx.IContext, status int, err error) error {
 	return ctx.JSON(status, map[string]string{"message": err.Error()})
 }
 

@@ -10,7 +10,7 @@ import (
 	"gochen-llm/client"
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errors"
+	"gochen/runtime/errorx"
 )
 
 type ChatService interface {
@@ -40,10 +40,10 @@ func NewChatService(manager ProviderManager, prompt PromptService, safety Safety
 
 func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if req == nil {
-		return nil, errors.NewError(errors.InvalidInput, "ChatRequest 不能为空")
+		return nil, errorx.NewError(errorx.InvalidInput, "ChatRequest 不能为空")
 	}
 	if s.manager == nil {
-		return nil, errors.NewError(errors.Internal, "LLM ProviderManager 未配置")
+		return nil, errorx.NewError(errorx.Internal, "LLM ProviderManager 未配置")
 	}
 
 	// 安全策略：输入验证与系统提示拼接
@@ -181,10 +181,10 @@ func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 
 func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatRequest) (*ChatResponse, error) {
 	if req == nil {
-		return nil, errors.NewError(errors.InvalidInput, "PromptChatRequest 不能为空")
+		return nil, errorx.NewError(errorx.InvalidInput, "PromptChatRequest 不能为空")
 	}
 	if s.prompt == nil {
-		return nil, errors.NewError(errors.Internal, "PromptService 未配置")
+		return nil, errorx.NewError(errorx.Internal, "PromptService 未配置")
 	}
 
 	tmpl, err := s.prompt.GetPrompt(ctx, req.PromptName, req.PromptScope, req.PromptScopeID)
@@ -192,7 +192,7 @@ func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatReq
 		return nil, err
 	}
 	if tmpl == nil {
-		return nil, errors.NewError(errors.NotFound, "提示词不存在")
+		return nil, errorx.NewError(errorx.NotFound, "提示词不存在")
 	}
 
 	// A/B 分配（可选）
@@ -244,7 +244,7 @@ func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatReq
 
 func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-chan *ChatChunk, error) {
 	if req == nil {
-		return nil, errors.NewError(errors.InvalidInput, "ChatRequest 不能为空")
+		return nil, errorx.NewError(errorx.InvalidInput, "ChatRequest 不能为空")
 	}
 
 	ch := make(chan *ChatChunk, 8)

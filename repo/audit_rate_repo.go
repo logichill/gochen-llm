@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"gochen-llm/entity"
-	"gochen/data/orm"
-	"gochen/errors"
+	"gochen/runtime/errorx"
+	"gochen/storage/orm"
 )
 
 // AuditLogRepo 持久化审计日志
@@ -57,10 +57,10 @@ func NewRateLimitRepo(o orm.IOrm) RateLimitRepo {
 
 func (r *auditLogRepoImpl) Save(ctx context.Context, log *entity.AuditLog) error {
 	if log == nil {
-		return errors.NewError(errors.InvalidInput, "audit log 不能为空")
+		return errorx.NewError(errorx.InvalidInput, "audit log 不能为空")
 	}
 	if err := r.model.model(r.orm).Create(ctx, log); err != nil {
-		return errors.WrapDbError(ctx, err, "保存审计日志失败")
+		return errorx.WrapDbError(ctx, err, "保存审计日志失败")
 	}
 	return nil
 }
@@ -78,7 +78,7 @@ func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limi
 
 	total, err := model.Count(ctx, filterOptions...)
 	if err != nil {
-		return nil, 0, errors.WrapDbError(ctx, err, "统计审计日志失败")
+		return nil, 0, errorx.WrapDbError(ctx, err, "统计审计日志失败")
 	}
 
 	listOptions := append(filterOptions,
@@ -89,14 +89,14 @@ func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limi
 
 	var list []*entity.AuditLog
 	if err := model.Find(ctx, &list, listOptions...); err != nil {
-		return nil, 0, errors.WrapDbError(ctx, err, "查询审计日志失败")
+		return nil, 0, errorx.WrapDbError(ctx, err, "查询审计日志失败")
 	}
 	return list, total, nil
 }
 
 func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourceType string, windowStart time.Time, windowSizeSeconds int, deltaReq int, deltaTokens int) (*entity.RateLimit, error) {
 	if userID <= 0 {
-		return nil, errors.NewError(errors.InvalidInput, "userID 无效")
+		return nil, errorx.NewError(errorx.InvalidInput, "userID 无效")
 	}
 	if resourceType == "" {
 		resourceType = "default"
@@ -107,7 +107,7 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 
 	session, err := r.orm.Begin(ctx)
 	if err != nil {
-		return nil, errors.WrapDbError(ctx, err, "开启限流事务失败")
+		return nil, errorx.WrapDbError(ctx, err, "开启限流事务失败")
 	}
 	committed := false
 	defer func() {
@@ -124,7 +124,7 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 		orm.WithForUpdate(),
 	)
 	if err != nil {
-		if errors.IsNotFound(err) {
+		if errorx.IsNotFound(err) {
 			result = entity.RateLimit{
 				UserID:            userID,
 				ResourceType:      resourceType,
@@ -134,21 +134,21 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 				TokenCount:        deltaTokens,
 			}
 			if err := model.Create(ctx, &result); err != nil {
-				return nil, errors.WrapDbError(ctx, err, "创建限流窗口失败")
+				return nil, errorx.WrapDbError(ctx, err, "创建限流窗口失败")
 			}
 		} else {
-			return nil, errors.WrapDbError(ctx, err, "查询限流窗口失败")
+			return nil, errorx.WrapDbError(ctx, err, "查询限流窗口失败")
 		}
 	} else {
 		result.RequestCount += deltaReq
 		result.TokenCount += deltaTokens
 		if err := model.Save(ctx, &result, orm.WithWhere("id = ?", result.ID)); err != nil {
-			return nil, errors.WrapDbError(ctx, err, "更新限流计数失败")
+			return nil, errorx.WrapDbError(ctx, err, "更新限流计数失败")
 		}
 	}
 
 	if err := session.Commit(); err != nil {
-		return nil, errors.WrapDbError(ctx, err, "提交限流事务失败")
+		return nil, errorx.WrapDbError(ctx, err, "提交限流事务失败")
 	}
 	committed = true
 	return &result, nil
@@ -169,7 +169,7 @@ func (r *rateLimitRepoImpl) ListRecent(ctx context.Context, resourceType string,
 
 	var list []*entity.RateLimit
 	if err := r.model.model(r.orm).Find(ctx, &list, opts...); err != nil {
-		return nil, errors.WrapDbError(ctx, err, "查询限流窗口失败")
+		return nil, errorx.WrapDbError(ctx, err, "查询限流窗口失败")
 	}
 	return list, nil
 }
@@ -187,7 +187,7 @@ func (r *rateLimitRepoImpl) SumSince(ctx context.Context, resourceType string, s
 		Total int64 `json:"total"`
 	}
 	if err := r.model.model(r.orm).First(ctx, &row, append(opts, orm.WithSelect("COALESCE(SUM(request_count), 0) as total"))...); err != nil {
-		return 0, errors.WrapDbError(ctx, err, "统计限流请求数失败")
+		return 0, errorx.WrapDbError(ctx, err, "统计限流请求数失败")
 	}
 	return row.Total, nil
 }

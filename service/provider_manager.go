@@ -12,8 +12,8 @@ import (
 	"gochen-llm/client"
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errors"
-	"gochen/logging"
+	"gochen/runtime/errorx"
+	"gochen/runtime/logging"
 )
 
 // ProviderManager 抽象多源 LLM 管理器，负责端点选择与简单故障切换。
@@ -85,7 +85,7 @@ func NewProviderManager(repo repo.ProviderConfigRepo, logger logging.ILogger) (P
 
 func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
 	if req == nil {
-		return nil, "", "", 0, 0, 0, errors.NewError(errors.InvalidInput, "LLM 请求不能为空")
+		return nil, "", "", 0, 0, 0, errorx.NewError(errorx.InvalidInput, "LLM 请求不能为空")
 	}
 
 	eps, err := m.getOrLoadEndpoints(ctx)
@@ -93,7 +93,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 		return nil, "", "", 0, 0, 0, err
 	}
 	if len(eps) == 0 {
-		return nil, "", "", 0, 0, 0, errors.NewError(errors.Internal, "LLM 未配置")
+		return nil, "", "", 0, 0, 0, errorx.NewError(errorx.Internal, "LLM 未配置")
 	}
 
 	now := time.Now()
@@ -102,7 +102,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 		candidates = m.selectAllByMinPriority(eps)
 	}
 	if len(candidates) == 0 {
-		return nil, "", "", 0, 0, 0, errors.NewError(errors.Internal, "没有可用的 LLM 端点")
+		return nil, "", "", 0, 0, 0, errorx.NewError(errorx.Internal, "没有可用的 LLM 端点")
 	}
 
 	var firstErr error
@@ -206,14 +206,14 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 	}
 
 	if firstErr == nil {
-		return nil, "", "", 0, 0, 0, errors.NewError(errors.Internal, "LLM 调用失败但未返回具体错误")
+		return nil, "", "", 0, 0, 0, errorx.NewError(errorx.Internal, "LLM 调用失败但未返回具体错误")
 	}
-	return nil, "", "", 0, 0, 0, errors.WrapError(firstErr, errors.Internal, "所有 LLM 端点调用失败")
+	return nil, "", "", 0, 0, 0, errorx.WrapError(firstErr, errorx.Internal, "所有 LLM 端点调用失败")
 }
 
 func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointState) error {
 	if ep == nil || ep.cfg == nil {
-		return errors.NewError(errors.Internal, "端点未初始化")
+		return errorx.NewError(errorx.Internal, "端点未初始化")
 	}
 	timeout := time.Duration(maxInt(ep.cfg.HealthTimeoutSeconds, 1)) * time.Second
 	client := &http.Client{Timeout: timeout}
@@ -267,7 +267,7 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 		} else if resp != nil {
 			lastErr = fmt.Errorf("status=%d", resp.StatusCode)
 		} else {
-			lastErr = errors.NewError(errors.Internal, "未知健康探测错误")
+			lastErr = errorx.NewError(errorx.Internal, "未知健康探测错误")
 		}
 		// 指数退避重试，避免短暂抖动误判
 		time.Sleep(time.Duration(i+1) * 150 * time.Millisecond)
@@ -292,7 +292,7 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 			logging.Error(lastErr),
 		)
 	}
-	return errors.NewError(errors.Internal, "health ping failed")
+	return errorx.NewError(errorx.Internal, "health ping failed")
 }
 
 func maxInt(a, b int) int {
@@ -630,10 +630,10 @@ func (m *providerManagerImpl) ReplaceConfigs(ctx context.Context, configs []*ent
 			cfg.Name = cfg.Provider
 		}
 		if cfg.InputPricePer1k < 0 || cfg.OutputPricePer1k < 0 {
-			return errors.NewError(errors.Validation, "LLM 单价不能为负数")
+			return errorx.NewError(errorx.Validation, "LLM 单价不能为负数")
 		}
 		if cfg.InputPricePer1k > 100 || cfg.OutputPricePer1k > 100 {
-			return errors.NewError(errors.Validation, "LLM 单价疑似异常（>100 USD/1k tokens）")
+			return errorx.NewError(errorx.Validation, "LLM 单价疑似异常（>100 USD/1k tokens）")
 		}
 	}
 	if err := m.repo.ReplaceAll(ctx, configs); err != nil {
