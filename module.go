@@ -1,29 +1,31 @@
 package llm
 
 import (
-	"context"
-
 	"gochen-llm/repo"
 	"gochen-llm/router"
 	"gochen-llm/service"
-	"gochen/eventing/bus"
-	"gochen/eventing/projection"
 	"gochen/runtime/di"
+	"gochen/server"
 )
 
 // Module LLM 通用能力模块
-type Module struct{}
+type Module struct {
+	container di.IContainer
+}
 
-func NewModule() *Module {
-	return &Module{}
+func NewModule(container di.IContainer) (server.IModule, error) {
+	m := &Module{container: container}
+	if err := m.registerProviders(); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (m *Module) Name() string {
 	return "LLM"
 }
 
-// RegisterProviders 注册仓储、服务与路由
-func (m *Module) RegisterProviders(container di.IContainer) error {
+func (m *Module) registerProviders() error {
 	ctors := []interface{}{
 		// Repos
 		repo.NewProviderConfigRepo,
@@ -46,21 +48,9 @@ func (m *Module) RegisterProviders(container di.IContainer) error {
 	}
 
 	for _, ctor := range ctors {
-		if err := container.RegisterConstructor(ctor); err != nil {
+		if err := m.container.RegisterConstructor(ctor); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-func (m *Module) RegisterEventHandlers(ctx context.Context, eventBus bus.IEventBus, container di.IContainer) error {
-	_ = ctx
-	_ = eventBus
-	_ = container
-	return nil
-}
-
-func (m *Module) RegisterProjections(container di.IContainer) (*projection.ProjectionManager, []string, error) {
-	_ = container
-	return nil, nil, nil
 }
