@@ -18,6 +18,10 @@ func NewMetricsRoutes(metrics repo.MetricsRepo) *MetricsRoutes {
 	return &MetricsRoutes{metrics: metrics}
 }
 
+func (r *MetricsRoutes) GetName() string { return "llm_metrics" }
+
+func (r *MetricsRoutes) GetPriority() int { return 310 }
+
 func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) {
 	api := group.Group("/admin/llm/metrics")
 	api.GET("/agg", r.aggregate)
