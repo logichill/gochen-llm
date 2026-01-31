@@ -2,8 +2,6 @@ package llm
 
 import (
 	"context"
-	"reflect"
-	"sort"
 
 	"gochen-llm/repo"
 	"gochen-llm/router"
@@ -35,8 +33,6 @@ func (m *Module) Init(opts server.ModuleInitOptions) error {
 	return m.registerProviders()
 }
 
-type routeRegistrar = server.RouteRegistrar
-
 // RegisterRoutes 仅挂载 HTTP 路由，不进入运行期。
 func (m *Module) RegisterRoutes(ctx context.Context) error {
 	if m == nil {
@@ -50,25 +46,19 @@ func (m *Module) RegisterRoutes(ctx context.Context) error {
 		return nil
 	}
 
-	registrars, err := m.resolveRouteRegistrars()
-	if err != nil {
-		return err
-	}
-	sort.Slice(registrars, func(i, j int) bool {
-		pi, pj := registrars[i].GetPriority(), registrars[j].GetPriority()
-		if pi == pj {
-			return registrars[i].GetName() < registrars[j].GetName()
-		}
-		return pi < pj
-	})
-
-	for _, r := range registrars {
-		if r == nil {
-			continue
-		}
-		if err := server.SafeRegisterRoutes(r, group); err != nil {
-			return err
-		}
+	if err := m.container.Invoke(func(
+		manager service.ProviderManager,
+		safety repo.SafetyPolicyRepo,
+		metrics repo.MetricsRepo,
+		cfgRepo repo.ProviderConfigRepo,
+		audit repo.AuditLogRepo,
+		rate repo.RateLimitRepo,
+		safetySvc service.SafetyService,
+	) {
+		router.NewLLMAdminRoutes(manager, safety, metrics, cfgRepo, audit, rate, safetySvc).RegisterRoutes(group)
+		router.NewMetricsRoutes(metrics).RegisterRoutes(group)
+	}); err != nil {
+		return errorx.WrapError(err, errorx.Dependency, "failed to build llm routes")
 	}
 	return nil
 }
@@ -105,31 +95,4 @@ func (m *Module) registerProviders() error {
 		}
 	}
 	return nil
-}
-
-func (m *Module) resolveRouteRegistrars() ([]routeRegistrar, error) {
-	if m == nil || m.container == nil {
-		return nil, nil
-	}
-
-	types := []reflect.Type{
-		server.ElemType((*router.LLMAdminRoutes)(nil)),
-		server.ElemType((*router.MetricsRoutes)(nil)),
-	}
-
-	out := make([]routeRegistrar, 0, len(types))
-	for _, t := range types {
-		inst, err := server.ResolveByType(m.container, t)
-		if err != nil {
-			return nil, err
-		}
-		r, ok := inst.(routeRegistrar)
-		if !ok || server.IsTypedNil(r) {
-			return nil, errorx.NewInternalError("resolved route registrar has invalid type").
-				WithContext("type", t.String()).
-				WithContext("value_type", server.TypeString(inst))
-		}
-		out = append(out, r)
-	}
-	return out, nil
 }
