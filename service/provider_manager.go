@@ -12,6 +12,7 @@ import (
 	"gochen-llm/client"
 	"gochen-llm/entity"
 	"gochen-llm/repo"
+	"gochen/runtime"
 	"gochen/runtime/errorx"
 	"gochen/runtime/logging"
 )
@@ -68,6 +69,7 @@ type healthSample struct {
 type providerManagerImpl struct {
 	repo   repo.ProviderConfigRepo
 	logger logging.ILogger
+	super  *runtime.TaskSupervisor
 
 	endpoints atomic.Value // []*endpointState
 	pingEvery time.Duration
@@ -77,9 +79,12 @@ func NewProviderManager(repo repo.ProviderConfigRepo, logger logging.ILogger) (P
 	m := &providerManagerImpl{
 		repo:      repo,
 		logger:    logger,
+		super:     runtime.NewTaskSupervisor("gochen-llm.provider_manager"),
 		pingEvery: 30 * time.Second,
 	}
-	go m.healthLoop()
+	m.super.Go(context.Background(), "health_loop", func(ctx context.Context) {
+		m.healthLoop(ctx)
+	})
 	return m, nil
 }
 
@@ -390,23 +395,30 @@ func formatTimeUTC(ts int64) string {
 }
 
 // healthLoop 定时对具备 HealthPingURL 的端点做 ping，保持健康状态更新
-func (m *providerManagerImpl) healthLoop() {
+func (m *providerManagerImpl) healthLoop(ctx context.Context) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	ticker := time.NewTicker(m.pingEvery)
 	defer ticker.Stop()
-	for range ticker.C {
-		ctx := context.Background()
-		eps, err := m.getOrLoadEndpoints(ctx)
-		if err != nil || len(eps) == 0 {
-			continue
-		}
-		for _, ep := range eps {
-			if ep == nil || ep.cfg == nil || ep.cfg.HealthPingURL == "" {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			eps, err := m.getOrLoadEndpoints(ctx)
+			if err != nil || len(eps) == 0 {
 				continue
 			}
-			pctx, cancel := context.WithTimeout(ctx, time.Duration(maxInt(ep.cfg.HealthTimeoutSeconds, 1))*time.Second)
-			atomic.StoreInt64(&ep.lastPingAt, time.Now().UnixNano())
-			_ = m.pingEndpoint(pctx, ep)
-			cancel()
+			for _, ep := range eps {
+				if ep == nil || ep.cfg == nil || ep.cfg.HealthPingURL == "" {
+					continue
+				}
+				pctx, cancel := context.WithTimeout(ctx, time.Duration(maxInt(ep.cfg.HealthTimeoutSeconds, 1))*time.Second)
+				atomic.StoreInt64(&ep.lastPingAt, time.Now().UnixNano())
+				_ = m.pingEndpoint(pctx, ep)
+				cancel()
+			}
 		}
 	}
 }

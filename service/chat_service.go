@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"runtime/debug"
+	"fmt"
 	"strings"
 	"sync"
 	"time"
@@ -11,8 +11,8 @@ import (
 	"gochen-llm/client"
 	"gochen-llm/entity"
 	"gochen-llm/repo"
+	"gochen/runtime"
 	"gochen/runtime/errorx"
-	"gochen/runtime/logging"
 )
 
 type ChatService interface {
@@ -250,15 +250,9 @@ func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-c
 	}
 
 	ch := make(chan *ChatChunk, 8)
-	go func() {
+	super := runtime.NewTaskSupervisor("llm.stream_chat")
+	super.Go(ctx, "stream", func(ctx context.Context) {
 		defer close(ch)
-		defer func() {
-			if rec := recover(); rec != nil {
-				logging.GetLogger().Error(ctx, "StreamChat goroutine panic",
-					logging.Any("panic", rec),
-					logging.String("stack", string(debug.Stack())))
-			}
-		}()
 
 		resp, err := s.Chat(ctx, req)
 		if err != nil {
@@ -273,7 +267,7 @@ func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-c
 			case ch <- &ChatChunk{Content: seg}:
 			}
 		}
-	}()
+	})
 	return ch, nil
 }
 
@@ -297,18 +291,12 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 	}
 	close(idxCh)
 
+	super := runtime.NewTaskSupervisor("llm.batch_chat")
 	for w := 0; w < concurrency; w++ {
 		wg.Add(1)
-		go func() {
+		workerID := w
+		super.Go(ctx, fmt.Sprintf("worker_%d", workerID), func(ctx context.Context) {
 			defer wg.Done()
-			defer func() {
-				if rec := recover(); rec != nil {
-					logging.GetLogger().Error(ctx, "BatchChat worker panic",
-						logging.Any("panic", rec),
-						logging.String("stack", string(debug.Stack())))
-					errCh <- errorx.NewError(errorx.Internal, "batch chat worker panic")
-				}
-			}()
 			for idx := range idxCh {
 				r := reqs[idx]
 				// 每个请求单独超时，避免批处理阻塞
@@ -321,11 +309,12 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 				}
 				result[idx] = resp
 			}
-		}()
+		})
 	}
 
 	wg.Wait()
 	close(errCh)
+	super.Stop()
 	if err := <-errCh; err != nil {
 		return nil, err
 	}
