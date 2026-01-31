@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen/runtime/errorx"
+	"gochen/runtime/logging"
 )
 
 type ChatService interface {
@@ -250,6 +252,13 @@ func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-c
 	ch := make(chan *ChatChunk, 8)
 	go func() {
 		defer close(ch)
+		defer func() {
+			if rec := recover(); rec != nil {
+				logging.GetLogger().Error(ctx, "StreamChat goroutine panic",
+					logging.Any("panic", rec),
+					logging.String("stack", string(debug.Stack())))
+			}
+		}()
 
 		resp, err := s.Chat(ctx, req)
 		if err != nil {
@@ -292,6 +301,14 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if rec := recover(); rec != nil {
+					logging.GetLogger().Error(ctx, "BatchChat worker panic",
+						logging.Any("panic", rec),
+						logging.String("stack", string(debug.Stack())))
+					errCh <- errorx.NewError(errorx.Internal, "batch chat worker panic")
+				}
+			}()
 			for idx := range idxCh {
 				r := reqs[idx]
 				// 每个请求单独超时，避免批处理阻塞
