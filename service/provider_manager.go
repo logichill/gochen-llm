@@ -19,6 +19,8 @@ import (
 
 // ProviderManager 抽象多源 LLM 管理器，负责端点选择与简单故障切换。
 type ProviderManager interface {
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
 	ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error)
 	Reload(ctx context.Context) error
 	ListEffectiveConfigs(ctx context.Context) ([]*entity.ProviderConfig, error)
@@ -73,6 +75,11 @@ type providerManagerImpl struct {
 
 	endpoints atomic.Value // []*endpointState
 	pingEvery time.Duration
+
+	lifecycleMu sync.Mutex
+	started     bool
+	stopped     bool
+	cancel      context.CancelFunc
 }
 
 func NewProviderManager(repo repo.ProviderConfigRepo, logger logging.ILogger) (ProviderManager, error) {
@@ -82,10 +89,66 @@ func NewProviderManager(repo repo.ProviderConfigRepo, logger logging.ILogger) (P
 		super:     runtime.NewTaskSupervisor("gochen-llm.provider_manager"),
 		pingEvery: 30 * time.Second,
 	}
-	m.super.Go(context.Background(), "health_loop", func(ctx context.Context) {
-		m.healthLoop(ctx)
-	})
 	return m, nil
+}
+
+func (m *providerManagerImpl) Start(ctx context.Context) error {
+	if m == nil {
+		return nil
+	}
+
+	m.lifecycleMu.Lock()
+	defer m.lifecycleMu.Unlock()
+
+	if m.stopped {
+		return errorx.NewError(errorx.Internal, "LLM ProviderManager 已停止，无法再次启动")
+	}
+	if m.started {
+		return nil
+	}
+
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	loopCtx, cancel := context.WithCancel(ctx)
+	m.cancel = cancel
+	m.started = true
+
+	m.super.GoLoop(loopCtx, "health_loop", m.pingEvery, func(ctx context.Context) error {
+		m.runHealthCheckOnce(ctx)
+		return nil
+	})
+
+	return nil
+}
+
+func (m *providerManagerImpl) Stop(ctx context.Context) error {
+	if m == nil {
+		return nil
+	}
+
+	m.lifecycleMu.Lock()
+	if !m.started || m.stopped {
+		m.lifecycleMu.Unlock()
+		return nil
+	}
+	m.stopped = true
+	cancel := m.cancel
+	m.lifecycleMu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if m.super != nil {
+		m.super.Stop()
+	}
+	if m.logger != nil {
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		m.logger.Info(ctx, "[LLMProviderManager] stopped")
+	}
+	return nil
 }
 
 func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
@@ -394,32 +457,27 @@ func formatTimeUTC(ts int64) string {
 	return time.Unix(0, ts).UTC().Format(time.RFC3339)
 }
 
-// healthLoop 定时对具备 HealthPingURL 的端点做 ping，保持健康状态更新
-func (m *providerManagerImpl) healthLoop(ctx context.Context) {
+// runHealthCheckOnce 对具备 HealthPingURL 的端点做一次 ping，更新健康状态。
+func (m *providerManagerImpl) runHealthCheckOnce(ctx context.Context) {
+	if m == nil {
+		return
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	ticker := time.NewTicker(m.pingEvery)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			eps, err := m.getOrLoadEndpoints(ctx)
-			if err != nil || len(eps) == 0 {
-				continue
-			}
-			for _, ep := range eps {
-				if ep == nil || ep.cfg == nil || ep.cfg.HealthPingURL == "" {
-					continue
-				}
-				pctx, cancel := context.WithTimeout(ctx, time.Duration(maxInt(ep.cfg.HealthTimeoutSeconds, 1))*time.Second)
-				atomic.StoreInt64(&ep.lastPingAt, time.Now().UnixNano())
-				_ = m.pingEndpoint(pctx, ep)
-				cancel()
-			}
+
+	eps, err := m.getOrLoadEndpoints(ctx)
+	if err != nil || len(eps) == 0 {
+		return
+	}
+	for _, ep := range eps {
+		if ep == nil || ep.cfg == nil || ep.cfg.HealthPingURL == "" {
+			continue
 		}
+		pctx, cancel := context.WithTimeout(ctx, time.Duration(maxInt(ep.cfg.HealthTimeoutSeconds, 1))*time.Second)
+		atomic.StoreInt64(&ep.lastPingAt, time.Now().UnixNano())
+		_ = m.pingEndpoint(pctx, ep)
+		cancel()
 	}
 }
 

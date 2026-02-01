@@ -64,7 +64,31 @@ func (m *Module) RegisterRoutes(ctx context.Context) error {
 }
 
 func (m *Module) Start(ctx context.Context) (server.ModuleStopFunc, error) {
-	return nil, nil
+	if m == nil {
+		return nil, nil
+	}
+	if m.container == nil {
+		return nil, errorx.NewInternalError("container not initialized")
+	}
+
+	// 运行期任务：启动 ProviderManager 的健康探测等后台循环（构造阶段不启动，避免泄露与测试语义漂移）。
+	if err := m.container.Invoke(func(pm service.ProviderManager) error {
+		return pm.Start(ctx)
+	}); err != nil {
+		return nil, errorx.WrapError(err, errorx.Dependency, "failed to start llm background tasks")
+	}
+
+	return func(stopCtx context.Context) error {
+		if m.container == nil {
+			return nil
+		}
+		if err := m.container.Invoke(func(pm service.ProviderManager) error {
+			return pm.Stop(stopCtx)
+		}); err != nil {
+			return errorx.WrapError(err, errorx.Internal, "failed to stop llm background tasks")
+		}
+		return nil
+	}, nil
 }
 
 func (m *Module) registerProviders() error {
