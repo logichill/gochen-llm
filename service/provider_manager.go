@@ -108,7 +108,7 @@ func (m *providerManagerImpl) Start(ctx context.Context) error {
 	}
 
 	if ctx == nil {
-		ctx = context.Background()
+		return errorx.NewError(errorx.InvalidInput, "ctx 不能为空")
 	}
 	loopCtx, cancel := context.WithCancel(ctx)
 	m.cancel = cancel
@@ -143,15 +143,20 @@ func (m *providerManagerImpl) Stop(ctx context.Context) error {
 		m.super.Stop()
 	}
 	if m.logger != nil {
-		if ctx == nil {
-			ctx = context.Background()
+		if ctx != nil {
+			m.logger.Info(ctx, "[LLMProviderManager] stopped")
 		}
-		m.logger.Info(ctx, "[LLMProviderManager] stopped")
+	}
+	if ctx == nil {
+		return errorx.NewError(errorx.InvalidInput, "ctx 不能为空")
 	}
 	return nil
 }
 
 func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
+	if ctx == nil {
+		return nil, "", "", 0, 0, 0, errorx.NewError(errorx.InvalidInput, "ctx 不能为空")
+	}
 	if req == nil {
 		return nil, "", "", 0, 0, 0, errorx.NewError(errorx.InvalidInput, "LLM 请求不能为空")
 	}
@@ -338,7 +343,16 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 			lastErr = errorx.NewError(errorx.Internal, "未知健康探测错误")
 		}
 		// 指数退避重试，避免短暂抖动误判
-		time.Sleep(time.Duration(i+1) * 150 * time.Millisecond)
+		delay := time.Duration(i+1) * 150 * time.Millisecond
+		timer := time.NewTimer(delay)
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+			if !timer.Stop() {
+				<-timer.C
+			}
+			return ctx.Err()
+		}
 	}
 
 	atomic.StoreUint32(&ep.healthSuccessStreak, 0)
@@ -463,7 +477,7 @@ func (m *providerManagerImpl) runHealthCheckOnce(ctx context.Context) {
 		return
 	}
 	if ctx == nil {
-		ctx = context.Background()
+		panic("providerManagerImpl.runHealthCheckOnce: ctx is nil")
 	}
 
 	eps, err := m.getOrLoadEndpoints(ctx)
