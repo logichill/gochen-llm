@@ -11,7 +11,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/runtime/errorx"
+	"gochen/errorx"
 )
 
 type PromptService interface {

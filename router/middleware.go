@@ -1,8 +1,8 @@
 package router
 
 import (
+	"gochen/errorx"
 	httpx "gochen/httpx"
-	"gochen/runtime/errorx"
 )
 
 // AdminOnlyMiddleware 默认仅检查用户已认证，角色校验由上层应用按需追加

@@ -12,8 +12,8 @@ import (
 	"gochen-llm/client"
 	"gochen-llm/entity"
 	"gochen-llm/repo"
+	"gochen/errorx"
 	"gochen/runtime"
-	"gochen/runtime/errorx"
 	"gochen/runtime/logging"
 )
 

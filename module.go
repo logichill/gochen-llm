@@ -6,8 +6,8 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/router"
 	"gochen-llm/service"
+	"gochen/errorx"
 	"gochen/runtime/di"
-	"gochen/runtime/errorx"
 	"gochen/server"
 )
 

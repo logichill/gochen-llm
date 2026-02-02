@@ -12,7 +12,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/runtime/errorx"
+	"gochen/errorx"
 )
 
 // SafetyService 聚合安全与审计能力（首版提供关键词过滤与系统安全提示）

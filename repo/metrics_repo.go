@@ -5,7 +5,7 @@ import (
 	"math"
 
 	"gochen-llm/entity"
-	"gochen/runtime/errorx"
+	"gochen/errorx"
 	"gochen/storage/orm"
 )
 

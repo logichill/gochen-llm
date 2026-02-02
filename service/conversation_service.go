@@ -7,7 +7,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/runtime/errorx"
+	"gochen/errorx"
 )
 
 // ConversationService 会话服务
