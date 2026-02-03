@@ -8,7 +8,7 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
-	httpx "gochen/httpx"
+	"gochen/httpx"
 	hbasic "gochen/httpx/nethttp"
 )
 
