@@ -14,6 +14,7 @@ import (
 	"gochen-llm/repo"
 	"gochen/errorx"
 	"gochen/logging"
+	"gochen/metadata"
 	"gochen/policy/retry"
 	runtime "gochen/task"
 )
@@ -486,7 +487,8 @@ func (m *providerManagerImpl) runHealthCheckOnce(ctx context.Context) {
 		return
 	}
 	if ctx == nil {
-		panic("providerManagerImpl.runHealthCheckOnce: ctx is nil")
+		// Align with gochen ecosystem: nil ctx is a caller bug, but background loops must not crash.
+		ctx = metadata.Background()
 	}
 
 	eps, err := m.getOrLoadEndpoints(ctx)
