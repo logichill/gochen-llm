@@ -249,12 +249,12 @@ func (s *safetyServiceImpl) validateText(ctx context.Context, text string) (*Saf
 }
 
 type scaledClock struct {
-	base   clock.Clock
+	base   clock.IClock
 	factor float64
 	origin time.Time
 }
 
-func newScaledClock(base clock.Clock, factor float64) clock.Clock {
+func newScaledClock(base clock.IClock, factor float64) clock.IClock {
 	if base == nil {
 		base = clock.NewRealClock()
 	}
@@ -278,14 +278,14 @@ func (c *scaledClock) Now() time.Time {
 	return c.origin.Add(scaled)
 }
 
-func (c *scaledClock) NewTimer(d time.Duration) clock.Timer {
+func (c *scaledClock) NewTimer(d time.Duration) clock.ITimer {
 	if c == nil || c.base == nil {
 		return clock.NewRealClock().NewTimer(d)
 	}
 	return c.base.NewTimer(time.Duration(float64(d) * c.factor))
 }
 
-func (c *scaledClock) NewTicker(d time.Duration) clock.Ticker {
+func (c *scaledClock) NewTicker(d time.Duration) clock.ITicker {
 	if c == nil || c.base == nil {
 		return clock.NewRealClock().NewTicker(d)
 	}

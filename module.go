@@ -12,7 +12,7 @@ import (
 )
 
 func NewModule() (server.IModule, error) {
-	var container server.ModuleContainer
+	var container server.IModuleContainer
 	return server.BuildModule(server.ModuleConfig{
 		ID:   "llm",
 		Name: "LLM",
@@ -37,7 +37,7 @@ func NewModule() (server.IModule, error) {
 			router.NewLLMAdminRoutes,
 			router.NewMetricsRoutes,
 		},
-		OnInit: func(c server.ModuleContainer) error {
+		OnInit: func(c server.IModuleContainer) error {
 			container = c
 			return nil
 		},
