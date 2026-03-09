@@ -14,7 +14,7 @@ import (
 )
 
 type testChatManager struct {
-	chatForUserFn func(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error)
+	chatForUserFn func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error)
 	lastReq       *client.ChatRequest
 }
 
@@ -32,12 +32,12 @@ func (m *testChatManager) ReplaceConfigs(ctx context.Context, configs []*entity.
 func (m *testChatManager) ListStatus(ctx context.Context) ([]*EndpointStatus, error) {
 	return nil, nil
 }
-func (m *testChatManager) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
+func (m *testChatManager) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
 	m.lastReq = req
 	if m.chatForUserFn != nil {
 		return m.chatForUserFn(ctx, userID, req)
 	}
-	return &client.ChatResponse{Content: "ok"}, "mock", "mock", 1, 0, 0, nil
+	return &ChatExecution{Response: &client.ChatResponse{Content: "ok"}, Provider: "mock", Model: "mock", LatencyMs: 1}, nil
 }
 
 type testPromptService struct {
@@ -222,8 +222,8 @@ func TestChatServiceChatValidationAndHappyPath(t *testing.T) {
 	var auditLogs []*entity.AuditLog
 
 	manager := &testChatManager{
-		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
-			return &client.ChatResponse{Content: "origin-response"}, "openai", "gpt-x", 12, 0.1, 0.2, nil
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
+			return &ChatExecution{Response: &client.ChatResponse{Content: "origin-response"}, Provider: "openai", Model: "gpt-x", LatencyMs: 12, InputPricePer1k: 0.1, OutputPricePer1k: 0.2}, nil
 		},
 	}
 	safety := &testSafetyService{
@@ -295,8 +295,8 @@ func TestChatServiceChatValidationAndHappyPath(t *testing.T) {
 func TestChatServiceErrorAndFilterPaths(t *testing.T) {
 	var saved []*entity.Metrics
 	manager := &testChatManager{
-		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
-			return nil, "openai", "gpt", 0, 0, 0, errors.New("boom")
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
+			return nil, errors.New("boom")
 		},
 	}
 	metrics := &testMetricsRepo{saveFn: func(ctx context.Context, m *entity.Metrics) error {
@@ -314,8 +314,8 @@ func TestChatServiceErrorAndFilterPaths(t *testing.T) {
 	}
 
 	svc2 := NewChatService(&testChatManager{
-		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
-			return &client.ChatResponse{Content: "raw"}, "mock", "m", 1, 0, 0, nil
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
+			return &ChatExecution{Response: &client.ChatResponse{Content: "raw"}, Provider: "mock", Model: "m", LatencyMs: 1}, nil
 		},
 	}, nil, &testSafetyService{
 		filterContentFn: func(ctx context.Context, content string) (string, error) {
@@ -346,11 +346,11 @@ func TestChatServicePromptStreamAndBatch(t *testing.T) {
 	}
 
 	manager := &testChatManager{
-		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
 			if len(req.Messages) > 0 && req.Messages[0].Content == "fail" {
-				return nil, "", "", 0, 0, 0, errors.New("chat failed")
+				return nil, errors.New("chat failed")
 			}
-			return &client.ChatResponse{Content: strings.Repeat("a", 450)}, "mock", "mock", 5, 0, 0, nil
+			return &ChatExecution{Response: &client.ChatResponse{Content: strings.Repeat("a", 450)}, Provider: "mock", Model: "mock", LatencyMs: 5}, nil
 		},
 	}
 
@@ -442,8 +442,8 @@ func TestChatHelpers(t *testing.T) {
 func TestChatServiceErrorMetricsUseErrorCode(t *testing.T) {
 	var saved []*entity.Metrics
 	manager := &testChatManager{
-		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
-			return nil, "openai", "gpt", 0, 0, 0, errorx.New(errorx.TooManyRequests, "rate limited")
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
+			return &ChatExecution{Provider: "openai", Model: "gpt"}, errorx.New(errorx.TooManyRequests, "rate limited")
 		},
 	}
 	metrics := &testMetricsRepo{saveFn: func(ctx context.Context, m *entity.Metrics) error {

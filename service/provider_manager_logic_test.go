@@ -198,28 +198,28 @@ func TestProviderManagerChatForUser(t *testing.T) {
 	m := &providerManagerImpl{}
 	m.endpoints.Store([]*endpointState{ep})
 
-	if _, _, _, _, _, _, err := m.ChatForUser(nil, 1, &client.ChatRequest{}); err == nil {
+	if _, err := m.ChatForUser(nil, 1, &client.ChatRequest{}); err == nil {
 		t.Fatalf("expected nil ctx validation error")
 	}
-	if _, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, nil); err == nil {
+	if _, err := m.ChatForUser(context.Background(), 1, nil); err == nil {
 		t.Fatalf("expected nil request validation error")
 	}
 
-	resp, provider, model, latency, inPrice, outPrice, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	result, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
 	if err != nil {
 		t.Fatalf("chat failed: %v", err)
 	}
-	if resp == nil || resp.Content != "ok" {
-		t.Fatalf("unexpected response: %#v", resp)
+	if result == nil || result.Response == nil || result.Response.Content != "ok" {
+		t.Fatalf("unexpected response: %#v", result)
 	}
-	if provider != "openai" || model != "gpt-test" {
-		t.Fatalf("unexpected provider/model: %s/%s", provider, model)
+	if result.Provider != "openai" || result.Model != "gpt-test" {
+		t.Fatalf("unexpected provider/model: %s/%s", result.Provider, result.Model)
 	}
-	if latency < 0 {
-		t.Fatalf("unexpected negative latency: %d", latency)
+	if result.LatencyMs < 0 {
+		t.Fatalf("unexpected negative latency: %d", result.LatencyMs)
 	}
-	if inPrice != 0.1 || outPrice != 0.2 {
-		t.Fatalf("unexpected prices: %v/%v", inPrice, outPrice)
+	if result.InputPricePer1k != 0.1 || result.OutputPricePer1k != 0.2 {
+		t.Fatalf("unexpected prices: %v/%v", result.InputPricePer1k, result.OutputPricePer1k)
 	}
 }
 
@@ -231,7 +231,7 @@ func TestProviderManagerChatForUserAllFailed(t *testing.T) {
 	m := &providerManagerImpl{}
 	m.endpoints.Store([]*endpointState{ep})
 
-	_, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	_, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
 	if err == nil {
 		t.Fatalf("expected all endpoints failed")
 	}
@@ -302,7 +302,7 @@ func TestProviderManagerChatForUserPreservesDependencyFailureCode(t *testing.T) 
 	m := &providerManagerImpl{}
 	m.endpoints.Store([]*endpointState{ep})
 
-	_, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	_, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
 	if err == nil {
 		t.Fatalf("expected all endpoints failed")
 	}
@@ -327,7 +327,7 @@ func TestProviderManagerChatForUser_DoesNotFailoverOnDeterministic4xx(t *testing
 	m := &providerManagerImpl{}
 	m.endpoints.Store([]*endpointState{first, second})
 
-	_, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	_, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
 	if err == nil {
 		t.Fatalf("expected deterministic provider error")
 	}
@@ -361,7 +361,7 @@ func TestProviderManagerChatForUser_PrefersCurrentDeterministicErrorOverEarlierT
 	m := &providerManagerImpl{}
 	m.endpoints.Store([]*endpointState{first, second})
 
-	_, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	_, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
 	if err == nil {
 		t.Fatalf("expected provider error")
 	}

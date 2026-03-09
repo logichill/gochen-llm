@@ -85,7 +85,17 @@ func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 		Temperature: temperature,
 		MaxTokens:   maxTokens,
 	}
-	resp, provider, model, latencyMs, inPricePer1k, outPricePer1k, err := s.manager.ChatForUser(ctx, req.UserID, clientReq)
+	execResult, err := s.manager.ChatForUser(ctx, req.UserID, clientReq)
+	provider, model := "", ""
+	var latencyMs int64
+	var inPricePer1k, outPricePer1k float64
+	if execResult != nil {
+		provider = execResult.Provider
+		model = execResult.Model
+		latencyMs = execResult.LatencyMs
+		inPricePer1k = execResult.InputPricePer1k
+		outPricePer1k = execResult.OutputPricePer1k
+	}
 	if err != nil {
 		if s.metricsRepo != nil {
 			var abTestID int64
@@ -110,7 +120,11 @@ func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 		return nil, err
 	}
 
-	content := resp.Content
+	if execResult == nil || execResult.Response == nil {
+		return nil, errorx.New(errorx.Internal, "LLM 调用未返回响应")
+	}
+
+	content := execResult.Response.Content
 	if s.safety != nil {
 		filtered, err := s.safety.FilterContent(ctx, content)
 		if err != nil && filtered == "" {

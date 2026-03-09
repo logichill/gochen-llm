@@ -22,7 +22,7 @@ import (
 type ProviderManager interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
-	ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error)
+	ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error)
 	Reload(ctx context.Context) error
 	ListEffectiveConfigs(ctx context.Context) ([]*entity.ProviderConfig, error)
 	ReplaceConfigs(ctx context.Context, configs []*entity.ProviderConfig) error
@@ -154,20 +154,20 @@ func (m *providerManagerImpl) Stop(ctx context.Context) error {
 	return nil
 }
 
-func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
+func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
 	if ctx == nil {
-		return nil, "", "", 0, 0, 0, errorx.New(errorx.InvalidInput, "ctx 不能为空")
+		return nil, errorx.New(errorx.InvalidInput, "ctx 不能为空")
 	}
 	if req == nil {
-		return nil, "", "", 0, 0, 0, errorx.New(errorx.InvalidInput, "LLM 请求不能为空")
+		return nil, errorx.New(errorx.InvalidInput, "LLM 请求不能为空")
 	}
 
 	eps, err := m.getOrLoadEndpoints(ctx)
 	if err != nil {
-		return nil, "", "", 0, 0, 0, err
+		return nil, err
 	}
 	if len(eps) == 0 {
-		return nil, "", "", 0, 0, 0, errorx.New(errorx.Internal, "LLM 未配置")
+		return nil, errorx.New(errorx.Internal, "LLM 未配置")
 	}
 
 	now := time.Now()
@@ -176,7 +176,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 		candidates = m.selectAllByMinPriority(eps)
 	}
 	if len(candidates) == 0 {
-		return nil, "", "", 0, 0, 0, errorx.New(errorx.Internal, "没有可用的 LLM 端点")
+		return nil, errorx.New(errorx.Internal, "没有可用的 LLM 端点")
 	}
 
 	var firstErr error
@@ -233,7 +233,14 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 			} else {
 				atomic.StoreUint32(&ep.healthFailedStreak, 0)
 			}
-			return resp, ep.cfg.Provider, ep.cfg.Model, latency, ep.cfg.InputPricePer1k, ep.cfg.OutputPricePer1k, nil
+			return &ChatExecution{
+				Response:         resp,
+				Provider:         ep.cfg.Provider,
+				Model:            ep.cfg.Model,
+				LatencyMs:        latency,
+				InputPricePer1k:  ep.cfg.InputPricePer1k,
+				OutputPricePer1k: ep.cfg.OutputPricePer1k,
+			}, nil
 		}
 
 		atomic.AddUint64(&ep.stats.failures, 1)
@@ -241,7 +248,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 		ep.stats.lastError.Store(err.Error())
 		if !shouldRetryNextEndpoint(err) {
 			atomic.StoreUint32(&ep.stats.failureStreak, 0)
-			return nil, "", "", 0, 0, 0, err
+			return nil, err
 		}
 		atomic.StoreUint32(&ep.healthSuccessStreak, 0)
 		failStreak := atomic.AddUint32(&ep.healthFailedStreak, 1)
@@ -284,9 +291,9 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 	}
 
 	if firstErr == nil {
-		return nil, "", "", 0, 0, 0, errorx.New(errorx.Internal, "LLM 调用失败但未返回具体错误")
+		return nil, errorx.New(errorx.Internal, "LLM 调用失败但未返回具体错误")
 	}
-	return nil, "", "", 0, 0, 0, errorx.Wrap(firstErr, errorx.Code(firstErr), "所有 LLM 端点调用失败")
+	return nil, errorx.Wrap(firstErr, errorx.Code(firstErr), "所有 LLM 端点调用失败")
 }
 
 func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointState) error {

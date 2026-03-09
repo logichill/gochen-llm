@@ -21,6 +21,8 @@ func NewModule() (server.IModule, error) {
 			repo.NewProviderConfigRepo,
 			repo.NewSafetyPolicyRepo,
 			repo.NewPromptTemplateRepo,
+			repo.NewPromptVersionRepo,
+			repo.NewABTestRepo,
 			repo.NewAuditLogRepo,
 			repo.NewRateLimitRepo,
 			repo.NewConversationRepo,

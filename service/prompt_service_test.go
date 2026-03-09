@@ -14,75 +14,86 @@ import (
 
 type testPromptRepo struct {
 	upsertFn        func(ctx context.Context, tmpl *entity.PromptTemplate) error
-	getByIDFn       func(ctx context.Context, id int64) (*entity.PromptTemplate, error)
+	getFn           func(ctx context.Context, id int64) (*entity.PromptTemplate, error)
 	findEffectiveFn func(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
-	listFn          func(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error)
-	saveVersionFn   func(ctx context.Context, version *entity.PromptVersion) error
-	getVersionFn    func(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error)
-	saveABTestFn    func(ctx context.Context, test *entity.ABTest) error
-	updateABTestFn  func(ctx context.Context, test *entity.ABTest) error
-	getABTestFn     func(ctx context.Context, id int64) (*entity.ABTest, error)
+	listFn          func(ctx context.Context, offset, limit int) ([]*entity.PromptTemplate, error)
+	countFn         func(ctx context.Context) (int64, error)
 }
 
+func (r *testPromptRepo) Create(context.Context, *entity.PromptTemplate) error { return nil }
+func (r *testPromptRepo) Update(context.Context, *entity.PromptTemplate) error { return nil }
+func (r *testPromptRepo) Delete(context.Context, int64) error                  { return nil }
+func (r *testPromptRepo) Exists(context.Context, int64) (bool, error)          { return false, nil }
 func (r *testPromptRepo) Upsert(ctx context.Context, tmpl *entity.PromptTemplate) error {
 	if r.upsertFn != nil {
 		return r.upsertFn(ctx, tmpl)
 	}
 	return nil
 }
-
-func (r *testPromptRepo) GetByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
-	if r.getByIDFn != nil {
-		return r.getByIDFn(ctx, id)
+func (r *testPromptRepo) Get(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
+	if r.getFn != nil {
+		return r.getFn(ctx, id)
 	}
 	return nil, nil
 }
-
 func (r *testPromptRepo) FindEffective(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
 	if r.findEffectiveFn != nil {
 		return r.findEffectiveFn(ctx, name, scope, scopeID)
 	}
 	return nil, nil
 }
-
-func (r *testPromptRepo) List(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
+func (r *testPromptRepo) List(ctx context.Context, offset, limit int) ([]*entity.PromptTemplate, error) {
 	if r.listFn != nil {
-		return r.listFn(ctx, filter)
+		return r.listFn(ctx, offset, limit)
+	}
+	return nil, nil
+}
+func (r *testPromptRepo) Count(ctx context.Context) (int64, error) {
+	if r.countFn != nil {
+		return r.countFn(ctx)
+	}
+	return 0, nil
+}
+
+type testPromptVersionRepo struct {
+	saveFn func(ctx context.Context, version *entity.PromptVersion) error
+	getFn  func(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error)
+}
+
+func (r *testPromptVersionRepo) Save(ctx context.Context, version *entity.PromptVersion) error {
+	if r.saveFn != nil {
+		return r.saveFn(ctx, version)
+	}
+	return nil
+}
+func (r *testPromptVersionRepo) Get(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error) {
+	if r.getFn != nil {
+		return r.getFn(ctx, templateID, version)
 	}
 	return nil, nil
 }
 
-func (r *testPromptRepo) SaveVersion(ctx context.Context, version *entity.PromptVersion) error {
-	if r.saveVersionFn != nil {
-		return r.saveVersionFn(ctx, version)
+type testABTestRepo struct {
+	saveFn   func(ctx context.Context, test *entity.ABTest) error
+	updateFn func(ctx context.Context, test *entity.ABTest) error
+	getFn    func(ctx context.Context, id int64) (*entity.ABTest, error)
+}
+
+func (r *testABTestRepo) Save(ctx context.Context, test *entity.ABTest) error {
+	if r.saveFn != nil {
+		return r.saveFn(ctx, test)
 	}
 	return nil
 }
-
-func (r *testPromptRepo) GetVersion(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error) {
-	if r.getVersionFn != nil {
-		return r.getVersionFn(ctx, templateID, version)
-	}
-	return nil, nil
-}
-
-func (r *testPromptRepo) SaveABTest(ctx context.Context, test *entity.ABTest) error {
-	if r.saveABTestFn != nil {
-		return r.saveABTestFn(ctx, test)
+func (r *testABTestRepo) Update(ctx context.Context, test *entity.ABTest) error {
+	if r.updateFn != nil {
+		return r.updateFn(ctx, test)
 	}
 	return nil
 }
-
-func (r *testPromptRepo) UpdateABTest(ctx context.Context, test *entity.ABTest) error {
-	if r.updateABTestFn != nil {
-		return r.updateABTestFn(ctx, test)
-	}
-	return nil
-}
-
-func (r *testPromptRepo) GetABTest(ctx context.Context, id int64) (*entity.ABTest, error) {
-	if r.getABTestFn != nil {
-		return r.getABTestFn(ctx, id)
+func (r *testABTestRepo) Get(ctx context.Context, id int64) (*entity.ABTest, error) {
+	if r.getFn != nil {
+		return r.getFn(ctx, id)
 	}
 	return nil, nil
 }
@@ -100,12 +111,11 @@ func TestPromptServiceRenderAndCompose(t *testing.T) {
 			}
 		},
 	}
-	svc := NewPromptService(repoStub)
+	svc := NewPromptService(repoStub, &testPromptVersionRepo{}, &testABTestRepo{})
 
 	if _, err := svc.RenderPrompt(context.Background(), nil, nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
 		t.Fatalf("expected invalid input for nil template, got %v", err)
 	}
-
 	if _, err := svc.RenderPrompt(context.Background(), &entity.PromptTemplate{Content: "{{ .x"}, nil); err == nil || !errorx.Is(err, errorx.Internal) {
 		t.Fatalf("expected parse error, got %v", err)
 	}
@@ -138,26 +148,28 @@ func TestPromptServiceSaveAndVersionLifecycle(t *testing.T) {
 			upserted = append(upserted, &clone)
 			return nil
 		},
-		saveVersionFn: func(ctx context.Context, version *entity.PromptVersion) error {
-			clone := *version
-			savedVersions = append(savedVersions, &clone)
-			return nil
-		},
-		getByIDFn: func(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
+		getFn: func(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 			if id == 10 {
 				clone := *currentTemplate
 				return &clone, nil
 			}
 			return nil, nil
 		},
-		getVersionFn: func(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error) {
+	}
+	versionRepo := &testPromptVersionRepo{
+		saveFn: func(ctx context.Context, version *entity.PromptVersion) error {
+			clone := *version
+			savedVersions = append(savedVersions, &clone)
+			return nil
+		},
+		getFn: func(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error) {
 			if templateID == 10 && version == 1 {
 				return &entity.PromptVersion{TemplateID: 10, Version: 1, Content: "v1", VariablesJSON: "{\"x\":1}"}, nil
 			}
 			return nil, nil
 		},
 	}
-	svc := NewPromptService(repoStub)
+	svc := NewPromptService(repoStub, versionRepo, &testABTestRepo{})
 
 	if err := svc.SavePrompt(context.Background(), nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
 		t.Fatalf("expected invalid input when saving nil prompt, got %v", err)
@@ -214,17 +226,15 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 
 	abTest := &entity.ABTest{ID: 1, TemplateAID: 11, TemplateBID: 22, TrafficSplit: 30, Status: "running"}
 	repoStub := &testPromptRepo{
-		listFn: func(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
+		countFn: func(ctx context.Context) (int64, error) { return 1, nil },
+		listFn: func(ctx context.Context, offset, limit int) ([]*entity.PromptTemplate, error) {
 			return []*entity.PromptTemplate{{ID: 11, Name: "a"}}, nil
 		},
 		upsertFn: func(ctx context.Context, tmpl *entity.PromptTemplate) error {
 			saveCount++
 			return nil
 		},
-		saveVersionFn: func(ctx context.Context, version *entity.PromptVersion) error {
-			return nil
-		},
-		getByIDFn: func(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
+		getFn: func(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 			switch id {
 			case 11:
 				return &entity.PromptTemplate{ID: 11, Name: "A", Content: "A"}, nil
@@ -236,11 +246,14 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 				return nil, nil
 			}
 		},
-		saveABTestFn: func(ctx context.Context, test *entity.ABTest) error {
+	}
+	versionRepo := &testPromptVersionRepo{saveFn: func(ctx context.Context, version *entity.PromptVersion) error { return nil }}
+	abRepo := &testABTestRepo{
+		saveFn: func(ctx context.Context, test *entity.ABTest) error {
 			abTest = test
 			return nil
 		},
-		getABTestFn: func(ctx context.Context, id int64) (*entity.ABTest, error) {
+		getFn: func(ctx context.Context, id int64) (*entity.ABTest, error) {
 			if id == 1 {
 				clone := *abTest
 				return &clone, nil
@@ -250,13 +263,13 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 			}
 			return nil, nil
 		},
-		updateABTestFn: func(ctx context.Context, test *entity.ABTest) error {
+		updateFn: func(ctx context.Context, test *entity.ABTest) error {
 			clone := *test
 			updatedTest = &clone
 			return nil
 		},
 	}
-	svc := NewPromptService(repoStub)
+	svc := NewPromptService(repoStub, versionRepo, abRepo)
 
 	data, err := svc.ExportPrompts(context.Background(), repo.PromptFilter{})
 	if err != nil {

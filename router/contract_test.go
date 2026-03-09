@@ -75,8 +75,8 @@ type stubProviderManager struct {
 
 func (m *stubProviderManager) Start(ctx context.Context) error { return nil }
 func (m *stubProviderManager) Stop(ctx context.Context) error  { return nil }
-func (m *stubProviderManager) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
-	return nil, "", "", 0, 0, 0, nil
+func (m *stubProviderManager) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*service.ChatExecution, error) {
+	return nil, nil
 }
 func (m *stubProviderManager) Reload(ctx context.Context) error { return nil }
 func (m *stubProviderManager) ListEffectiveConfigs(ctx context.Context) ([]*entity.ProviderConfig, error) {

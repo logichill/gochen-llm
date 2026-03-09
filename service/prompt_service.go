@@ -31,19 +31,21 @@ type PromptService interface {
 }
 
 type promptServiceImpl struct {
-	repo repo.PromptTemplateRepo
+	templates repo.IPromptTemplateRepository
+	versions  repo.IPromptVersionRepository
+	abTests   repo.IABTestRepository
 }
 
-func NewPromptService(repo repo.PromptTemplateRepo) PromptService {
-	return &promptServiceImpl{repo: repo}
+func NewPromptService(templates repo.IPromptTemplateRepository, versions repo.IPromptVersionRepository, abTests repo.IABTestRepository) PromptService {
+	return &promptServiceImpl{templates: templates, versions: versions, abTests: abTests}
 }
 
 func (s *promptServiceImpl) GetPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
-	return s.repo.FindEffective(ctx, name, scope, scopeID)
+	return s.templates.FindEffective(ctx, name, scope, scopeID)
 }
 
 func (s *promptServiceImpl) GetPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
-	return s.repo.GetByID(ctx, id)
+	return s.templates.Get(ctx, id)
 }
 
 func (s *promptServiceImpl) RenderPrompt(ctx context.Context, tmpl *entity.PromptTemplate, vars map[string]any) (string, error) {
@@ -103,7 +105,7 @@ func (s *promptServiceImpl) SavePrompt(ctx context.Context, tmpl *entity.PromptT
 		tmpl.Version = 1
 	}
 
-	if err := s.repo.Upsert(ctx, tmpl); err != nil {
+	if err := s.templates.Upsert(ctx, tmpl); err != nil {
 		return err
 	}
 
@@ -115,18 +117,56 @@ func (s *promptServiceImpl) SavePrompt(ctx context.Context, tmpl *entity.PromptT
 		VariablesJSON: tmpl.VariablesJSON,
 		CreatedAt:     time.Now(),
 	}
-	return s.repo.SaveVersion(ctx, version)
+	return s.versions.Save(ctx, version)
 }
 
 func (s *promptServiceImpl) ListPrompts(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
-	return s.repo.List(ctx, filter)
+	return s.listFilteredPrompts(ctx, filter)
+}
+
+func (s *promptServiceImpl) listFilteredPrompts(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
+	total, err := s.templates.Count(ctx)
+	if err != nil {
+		return nil, err
+	}
+	limit := int(total)
+	if limit <= 0 {
+		return []*entity.PromptTemplate{}, nil
+	}
+	items, err := s.templates.List(ctx, 0, limit)
+	if err != nil {
+		return nil, err
+	}
+	filtered := make([]*entity.PromptTemplate, 0, len(items))
+	for _, tmpl := range items {
+		if tmpl == nil {
+			continue
+		}
+		if filter.Name != "" && tmpl.Name != filter.Name {
+			continue
+		}
+		if filter.Category != "" && tmpl.Category != filter.Category {
+			continue
+		}
+		if filter.Scope != nil && tmpl.Scope != *filter.Scope {
+			continue
+		}
+		if filter.ScopeID != nil && tmpl.ScopeID != *filter.ScopeID {
+			continue
+		}
+		if filter.Enabled != nil && tmpl.Enabled != *filter.Enabled {
+			continue
+		}
+		filtered = append(filtered, tmpl)
+	}
+	return filtered, nil
 }
 
 func (s *promptServiceImpl) CreateVersion(ctx context.Context, templateID int64, changeLog string) (*entity.PromptVersion, error) {
 	if templateID <= 0 {
 		return nil, errorx.New(errorx.InvalidInput, "templateID 无效")
 	}
-	tmpl, err := s.repo.GetByID(ctx, templateID)
+	tmpl, err := s.templates.Get(ctx, templateID)
 	if err != nil {
 		return nil, err
 	}
@@ -144,13 +184,13 @@ func (s *promptServiceImpl) CreateVersion(ctx context.Context, templateID int64,
 		CreatedAt:     time.Now(),
 	}
 
-	if err := s.repo.SaveVersion(ctx, version); err != nil {
+	if err := s.versions.Save(ctx, version); err != nil {
 		return nil, err
 	}
 
 	// 将模板版本号推进，以便后续更新保持一致
 	tmpl.Version = newVersion
-	if err := s.repo.Upsert(ctx, tmpl); err != nil {
+	if err := s.templates.Upsert(ctx, tmpl); err != nil {
 		return nil, err
 	}
 
@@ -162,7 +202,7 @@ func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int6
 		return errorx.New(errorx.InvalidInput, "templateID 或 version 无效")
 	}
 
-	target, err := s.repo.GetVersion(ctx, templateID, version)
+	target, err := s.versions.Get(ctx, templateID, version)
 	if err != nil {
 		return err
 	}
@@ -170,7 +210,7 @@ func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int6
 		return errorx.New(errorx.NotFound, "指定版本不存在")
 	}
 
-	tmpl, err := s.repo.GetByID(ctx, templateID)
+	tmpl, err := s.templates.Get(ctx, templateID)
 	if err != nil {
 		return err
 	}
@@ -183,7 +223,7 @@ func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int6
 	tmpl.VariablesJSON = target.VariablesJSON
 	tmpl.Version = target.Version + 1
 
-	if err := s.repo.Upsert(ctx, tmpl); err != nil {
+	if err := s.templates.Upsert(ctx, tmpl); err != nil {
 		return err
 	}
 
@@ -195,7 +235,7 @@ func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int6
 		ChangeLog:     fmt.Sprintf("rollback to version %d", version),
 		CreatedAt:     time.Now(),
 	}
-	return s.repo.SaveVersion(ctx, rollbackVersion)
+	return s.versions.Save(ctx, rollbackVersion)
 }
 
 func (s *promptServiceImpl) ExportPrompts(ctx context.Context, filter repo.PromptFilter) ([]byte, error) {
@@ -228,20 +268,28 @@ func (s *promptServiceImpl) StartABTest(ctx context.Context, test *entity.ABTest
 	}
 
 	// 校验模板存在
-	if _, err := s.repo.GetByID(ctx, test.TemplateAID); err != nil {
+	tmplA, err := s.templates.Get(ctx, test.TemplateAID)
+	if err != nil {
 		return err
 	}
-	if _, err := s.repo.GetByID(ctx, test.TemplateBID); err != nil {
+	if tmplA == nil {
+		return errorx.New(errorx.NotFound, "A/B 测试模板 A 不存在")
+	}
+	tmplB, err := s.templates.Get(ctx, test.TemplateBID)
+	if err != nil {
 		return err
+	}
+	if tmplB == nil {
+		return errorx.New(errorx.NotFound, "A/B 测试模板 B 不存在")
 	}
 
 	test.Status = "running"
 	test.StartAt = time.Now()
-	return s.repo.SaveABTest(ctx, test)
+	return s.abTests.Save(ctx, test)
 }
 
 func (s *promptServiceImpl) GetABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error) {
-	test, err := s.repo.GetABTest(ctx, testID)
+	test, err := s.abTests.Get(ctx, testID)
 	if err != nil || test == nil {
 		return test, err
 	}
@@ -253,7 +301,7 @@ func (s *promptServiceImpl) AssignABVariant(ctx context.Context, testID int64, u
 	if testID <= 0 {
 		return nil, "", errorx.New(errorx.InvalidInput, "ab_test_id 无效")
 	}
-	test, err := s.repo.GetABTest(ctx, testID)
+	test, err := s.abTests.Get(ctx, testID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -281,7 +329,7 @@ func (s *promptServiceImpl) AssignABVariant(ctx context.Context, testID int64, u
 		variant = "B"
 	}
 
-	tmpl, err := s.repo.GetByID(ctx, chosenID)
+	tmpl, err := s.templates.Get(ctx, chosenID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -304,7 +352,7 @@ func (s *promptServiceImpl) AssignABVariant(ctx context.Context, testID int64, u
 	}
 	data, _ := json.Marshal(result)
 	test.ResultJSON = string(data)
-	_ = s.repo.UpdateABTest(ctx, test)
+	_ = s.abTests.Update(ctx, test)
 
 	return tmpl, variant, nil
 }

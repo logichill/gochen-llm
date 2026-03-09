@@ -77,6 +77,24 @@ type PromptTemplate struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"` // 更新时间
 }
 
+func (p *PromptTemplate) GetID() int64 { return p.ID }
+
+func (p *PromptTemplate) GetVersion() uint64 {
+	if p == nil || p.Version <= 0 {
+		return 0
+	}
+	return uint64(p.Version)
+}
+
+func (p *PromptTemplate) SetID(id int64) { p.ID = id }
+
+func (p *PromptTemplate) Validate() error {
+	if p == nil {
+		return nil
+	}
+	return nil
+}
+
 // TableName 设置表名为 llm_prompt_templates
 func (PromptTemplate) TableName() string {
 	return "llm_prompt_templates"
