@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"net/http"
 	"sync"
@@ -240,6 +239,10 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 		atomic.AddUint64(&ep.stats.failures, 1)
 		atomic.StoreInt64(&ep.stats.lastErrorAt, time.Now().UnixNano())
 		ep.stats.lastError.Store(err.Error())
+		if !shouldRetryNextEndpoint(err) {
+			atomic.StoreUint32(&ep.stats.failureStreak, 0)
+			return nil, "", "", 0, 0, 0, err
+		}
 		atomic.StoreUint32(&ep.healthSuccessStreak, 0)
 		failStreak := atomic.AddUint32(&ep.healthFailedStreak, 1)
 		if int(failStreak) >= maxInt(ep.cfg.MaxErrorStreak, 1) {
@@ -283,7 +286,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 	if firstErr == nil {
 		return nil, "", "", 0, 0, 0, errorx.New(errorx.Internal, "LLM 调用失败但未返回具体错误")
 	}
-	return nil, "", "", 0, 0, 0, errorx.Wrap(firstErr, errorx.Internal, "所有 LLM 端点调用失败")
+	return nil, "", "", 0, 0, 0, errorx.Wrap(firstErr, errorx.Code(firstErr), "所有 LLM 端点调用失败")
 }
 
 func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointState) error {
@@ -336,9 +339,9 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 		}
 
 		if err != nil {
-			lastErr = err
+			lastErr = errorx.Wrap(err, errorx.Network, "健康探测请求失败")
 		} else if resp != nil {
-			lastErr = fmt.Errorf("status=%d", resp.StatusCode)
+			lastErr = errorx.New(errorx.ServiceUnavailable, "健康探测返回非成功状态").WithContext("status", resp.StatusCode)
 		} else {
 			lastErr = errorx.New(errorx.Internal, "未知健康探测错误")
 		}
@@ -384,7 +387,16 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 			logging.Error(lastErr),
 		)
 	}
-	return errorx.New(errorx.Internal, "health ping failed")
+	return errorx.Wrap(lastErr, errorx.Code(lastErr), "health ping failed")
+}
+
+func shouldRetryNextEndpoint(err error) bool {
+	switch errorx.Code(err) {
+	case errorx.InvalidInput, errorx.Validation, errorx.Unauthorized, errorx.Forbidden, errorx.NotFound, errorx.Conflict, errorx.Duplicate, errorx.Unsupported:
+		return false
+	default:
+		return true
+	}
 }
 
 func maxInt(a, b int) int {

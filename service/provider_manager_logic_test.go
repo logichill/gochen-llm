@@ -9,6 +9,7 @@ import (
 
 	"gochen-llm/client"
 	"gochen-llm/entity"
+	"gochen/errorx"
 )
 
 type fakeProviderConfigRepo struct {
@@ -40,11 +41,17 @@ func (f *fakeProviderConfigRepo) UpdatePricing(ctx context.Context, updates []en
 }
 
 type fakeLLMClient struct {
-	resp *client.ChatResponse
-	err  error
+	resp   *client.ChatResponse
+	err    error
+	chatFn func(ctx context.Context, req *client.ChatRequest) (*client.ChatResponse, error)
+	calls  int32
 }
 
 func (f *fakeLLMClient) Chat(ctx context.Context, req *client.ChatRequest) (*client.ChatResponse, error) {
+	atomic.AddInt32(&f.calls, 1)
+	if f.chatFn != nil {
+		return f.chatFn(ctx, req)
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -284,5 +291,87 @@ func TestProviderManagerReloadAndListStatus(t *testing.T) {
 	}
 	if len(status[0].HealthHistory) != 1 {
 		t.Fatalf("expected health history")
+	}
+}
+
+func TestProviderManagerChatForUserPreservesDependencyFailureCode(t *testing.T) {
+	failClient := &fakeLLMClient{err: errorx.New(errorx.ServiceUnavailable, "upstream auth failed")}
+	ep := newTestEndpoint(100, 100, 30)
+	ep.client = failClient
+
+	m := &providerManagerImpl{}
+	m.endpoints.Store([]*endpointState{ep})
+
+	_, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	if err == nil {
+		t.Fatalf("expected all endpoints failed")
+	}
+	if !errorx.Is(err, errorx.ServiceUnavailable) {
+		t.Fatalf("expected ServiceUnavailable preserved, got %v", err)
+	}
+}
+
+func TestProviderManagerChatForUser_DoesNotFailoverOnDeterministic4xx(t *testing.T) {
+	badReqClient := &fakeLLMClient{err: errorx.New(errorx.InvalidInput, "bad request")}
+	successClient := &fakeLLMClient{resp: &client.ChatResponse{Content: "ok"}}
+
+	first := newTestEndpoint(100, 100, 30)
+	first.client = badReqClient
+	first.cfg.Name = "first"
+	first.cfg.Provider = "openai"
+	second := newTestEndpoint(100, 100, 30)
+	second.client = successClient
+	second.cfg.Name = "second"
+	second.cfg.Provider = "gemini"
+
+	m := &providerManagerImpl{}
+	m.endpoints.Store([]*endpointState{first, second})
+
+	_, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	if err == nil {
+		t.Fatalf("expected deterministic provider error")
+	}
+	if !errorx.Is(err, errorx.InvalidInput) {
+		t.Fatalf("expected InvalidInput, got %v", err)
+	}
+	if got := atomic.LoadInt32(&badReqClient.calls); got != 1 {
+		t.Fatalf("expected first client called once, got %d", got)
+	}
+	if got := atomic.LoadInt32(&successClient.calls); got != 0 {
+		t.Fatalf("expected second client not to be called, got %d", got)
+	}
+	if got := atomic.LoadInt64(&first.cooldownUntil); got != 0 {
+		t.Fatalf("expected deterministic error not to trigger cooldown, got %d", got)
+	}
+}
+
+func TestProviderManagerChatForUser_PrefersCurrentDeterministicErrorOverEarlierTransient(t *testing.T) {
+	transientClient := &fakeLLMClient{err: errorx.New(errorx.ServiceUnavailable, "temporary upstream error")}
+	deterministicClient := &fakeLLMClient{err: errorx.New(errorx.InvalidInput, "bad request")}
+
+	first := newTestEndpoint(100, 100, 30)
+	first.client = transientClient
+	first.cfg.Name = "first"
+	first.cfg.Provider = "openai"
+	second := newTestEndpoint(100, 100, 30)
+	second.client = deterministicClient
+	second.cfg.Name = "second"
+	second.cfg.Provider = "gemini"
+
+	m := &providerManagerImpl{}
+	m.endpoints.Store([]*endpointState{first, second})
+
+	_, _, _, _, _, _, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	if err == nil {
+		t.Fatalf("expected provider error")
+	}
+	if !errorx.Is(err, errorx.InvalidInput) {
+		t.Fatalf("expected latest deterministic error, got %v", err)
+	}
+	if got := atomic.LoadInt32(&transientClient.calls); got != 1 {
+		t.Fatalf("expected transient client called once, got %d", got)
+	}
+	if got := atomic.LoadInt32(&deterministicClient.calls); got != 1 {
+		t.Fatalf("expected deterministic client called once, got %d", got)
 	}
 }
