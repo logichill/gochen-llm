@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"gochen/errorx"
 )
 
 type anthropicClient struct {
@@ -40,8 +42,11 @@ type anthropicChatResponse struct {
 }
 
 func (c *anthropicClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
+	if ctx == nil {
+		return nil, errorx.New(errorx.InvalidInput, "ctx is nil")
+	}
 	if c.cfg.APIKey == "" {
-		return nil, fmt.Errorf("anthropic API key 未配置")
+		return nil, newClientConfigError("anthropic API key 未配置")
 	}
 	baseURL := c.cfg.BaseURL
 	if baseURL == "" {
@@ -79,12 +84,12 @@ func (c *anthropicClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 
 	buf, err := json.Marshal(body)
 	if err != nil {
-		return nil, fmt.Errorf("序列化 Anthropic 请求失败: %w", err)
+		return nil, wrapClientInternal(err, "序列化 Anthropic 请求失败")
 	}
 
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(buf))
 	if err != nil {
-		return nil, fmt.Errorf("创建 Anthropic 请求失败: %w", err)
+		return nil, wrapClientInternal(err, "创建 Anthropic 请求失败")
 	}
 
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -97,24 +102,24 @@ func (c *anthropicClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 
 	resp, err := c.http.Do(httpReq)
 	if err != nil {
-		return nil, fmt.Errorf("调用 Anthropic 接口失败: %w", err)
+		return nil, wrapClientNetwork(err, "调用 Anthropic 接口失败")
 	}
 	defer resp.Body.Close()
 
 	respBytes, err := ioReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("读取 Anthropic 响应失败: %w", err)
+		return nil, wrapClientNetwork(err, "读取 Anthropic 响应失败")
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("anthropic 响应错误: status=%d, body=%s", resp.StatusCode, string(respBytes))
+		return nil, newUpstreamStatusError("anthropic", resp.StatusCode, respBytes)
 	}
 
 	var ar anthropicChatResponse
 	if err := json.Unmarshal(respBytes, &ar); err != nil {
-		return nil, fmt.Errorf("解析 Anthropic 响应失败: %w", err)
+		return nil, wrapClientInternal(err, "解析 Anthropic 响应失败")
 	}
 	if len(ar.Content) == 0 {
-		return nil, fmt.Errorf("anthropic 响应中不包含内容")
+		return nil, errorx.New(errorx.Internal, "anthropic 响应中不包含内容")
 	}
 	return &ChatResponse{Content: ar.Content[0].Text}, nil
 }

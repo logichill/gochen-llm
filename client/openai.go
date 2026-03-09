@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"gochen/errorx"
 )
 
 type openAIClient struct {
@@ -34,7 +36,7 @@ type openAIChatResponse struct {
 
 func (c *openAIClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if c.cfg.APIKey == "" {
-		return nil, fmt.Errorf("OpenAI API Key 未配置")
+		return nil, newClientConfigError("OpenAI API Key 未配置")
 	}
 
 	baseURL := c.cfg.BaseURL
@@ -68,10 +70,10 @@ func (c *openAIClient) Chat(ctx context.Context, req *ChatRequest) (*ChatRespons
 	return c.doRequest(ctx, url, body, func(respBytes []byte) (*ChatResponse, error) {
 		var resp openAIChatResponse
 		if err := json.Unmarshal(respBytes, &resp); err != nil {
-			return nil, fmt.Errorf("解析 OpenAI 响应失败: %w", err)
+			return nil, wrapClientInternal(err, "解析 OpenAI 响应失败")
 		}
 		if len(resp.Choices) == 0 {
-			return nil, fmt.Errorf("OpenAI 响应中不包含 choices")
+			return nil, errorx.New(errorx.Internal, "OpenAI 响应中不包含 choices")
 		}
 		return &ChatResponse{Content: resp.Choices[0].Message.Content}, nil
 	})

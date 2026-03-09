@@ -438,3 +438,28 @@ func TestChatHelpers(t *testing.T) {
 		t.Fatalf("unexpected chunk for empty string: %#v", got)
 	}
 }
+
+func TestChatServiceErrorMetricsUseErrorCode(t *testing.T) {
+	var saved []*entity.Metrics
+	manager := &testChatManager{
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*client.ChatResponse, string, string, int64, float64, float64, error) {
+			return nil, "openai", "gpt", 0, 0, 0, errorx.New(errorx.TooManyRequests, "rate limited")
+		},
+	}
+	metrics := &testMetricsRepo{saveFn: func(ctx context.Context, m *entity.Metrics) error {
+		saved = append(saved, m)
+		return nil
+	}}
+
+	svc := NewChatService(manager, nil, nil, metrics, nil)
+	_, err := svc.Chat(context.Background(), &ChatRequest{UserID: 9, Messages: []Message{{Content: "hi"}}})
+	if err == nil {
+		t.Fatalf("expected manager error")
+	}
+	if len(saved) != 1 {
+		t.Fatalf("expected one metric saved, got %#v", saved)
+	}
+	if saved[0].ErrorType != string(errorx.TooManyRequests) {
+		t.Fatalf("expected error type code, got %#v", saved[0])
+	}
+}

@@ -103,7 +103,7 @@ func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 				ABTestID:  abTestID,
 				ABVariant: abVariant,
 				Status:    "error",
-				ErrorType: err.Error(),
+				ErrorType: errorLabel(err),
 				CreatedAt: time.Now(),
 			})
 		}
@@ -383,4 +383,14 @@ func chunkContent(text string, size int) []string {
 		chunks = append(chunks, string(runes[i:end]))
 	}
 	return chunks
+}
+
+func errorLabel(err error) string {
+	if err == nil {
+		return ""
+	}
+	if code := errorx.Code(err); code != "" {
+		return string(code)
+	}
+	return err.Error()
 }

@@ -6,6 +6,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
+	"gochen/errorx"
 	"gochen/httpx"
 )
 
@@ -32,7 +33,7 @@ func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 
 func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
+		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
 
 	var filter entity.MetricsFilter
@@ -81,21 +82,21 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if group == "variant" && filter.ABTestID != nil {
 		rows, err := r.metrics.AggregateByVariant(ctx.GetContext(), filter)
 		if err != nil {
-			return ctx.JSON(500, map[string]string{"message": err.Error()})
+			return httpx.WriteError(ctx, err)
 		}
-		return ctx.JSON(200, map[string]any{"variants": rows})
+		return httpx.WriteSuccess(ctx, map[string]any{"variants": rows})
 	}
 
 	report, err := r.metrics.Aggregate(ctx.GetContext(), filter)
 	if err != nil {
-		return ctx.JSON(500, map[string]string{"message": err.Error()})
+		return httpx.WriteError(ctx, err)
 	}
-	return ctx.JSON(200, map[string]any{"report": report})
+	return httpx.WriteSuccess(ctx, map[string]any{"report": report})
 }
 
 func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
+		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
 
 	var filter entity.MetricsFilter
@@ -154,10 +155,10 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 
 	list, total, err := r.metrics.List(ctx.GetContext(), filter, limit, offset)
 	if err != nil {
-		return ctx.JSON(500, map[string]string{"message": err.Error()})
+		return httpx.WriteError(ctx, err)
 	}
 
-	return ctx.JSON(200, map[string]any{
+	return httpx.WriteSuccess(ctx, map[string]any{
 		"total":  total,
 		"list":   list,
 		"limit":  limit,
@@ -167,7 +168,7 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 
 func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return ctx.JSON(500, map[string]string{"message": "LLM metrics repo 未配置"})
+		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
 
 	var filter entity.MetricsFilter
@@ -190,7 +191,7 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 		}
 	}
 	if filter.ABTestID == nil {
-		return ctx.JSON(400, map[string]string{"message": "ab_test_id 不能为空"})
+		return httpx.WriteErrorCode(ctx, errorx.InvalidInput, "ab_test_id 不能为空")
 	}
 	if v := q.Get("start"); v != "" {
 		if t, err := time.Parse(time.RFC3339, v); err == nil {
@@ -205,9 +206,9 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 
 	report, err := r.metrics.Significance(ctx.GetContext(), filter)
 	if err != nil {
-		return ctx.JSON(500, map[string]string{"message": err.Error()})
+		return httpx.WriteError(ctx, err)
 	}
-	return ctx.JSON(200, map[string]any{
+	return httpx.WriteSuccess(ctx, map[string]any{
 		"report": report,
 	})
 }

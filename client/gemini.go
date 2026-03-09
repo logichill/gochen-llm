@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"gochen/errorx"
 )
 
 type geminiClient struct {
@@ -41,7 +43,7 @@ type geminiGenerateResponse struct {
 
 func (c *geminiClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if c.cfg.APIKey == "" {
-		return nil, fmt.Errorf("gemini API key 未配置")
+		return nil, newClientConfigError("gemini API key 未配置")
 	}
 
 	model := c.cfg.Model
@@ -93,10 +95,10 @@ func (c *geminiClient) Chat(ctx context.Context, req *ChatRequest) (*ChatRespons
 	return c.doRequest(ctx, url, body, func(respBytes []byte) (*ChatResponse, error) {
 		var gr geminiGenerateResponse
 		if err := json.Unmarshal(respBytes, &gr); err != nil {
-			return nil, fmt.Errorf("解析 Gemini 响应失败: %w", err)
+			return nil, wrapClientInternal(err, "解析 Gemini 响应失败")
 		}
 		if len(gr.Candidates) == 0 || len(gr.Candidates[0].Content.Parts) == 0 {
-			return nil, fmt.Errorf("gemini 响应中不包含内容")
+			return nil, errorx.New(errorx.Internal, "gemini 响应中不包含内容")
 		}
 		return &ChatResponse{Content: gr.Candidates[0].Content.Parts[0].Text}, nil
 	})
