@@ -74,7 +74,7 @@ type CostReport struct {
 	TotalTokens      int     `json:"total_tokens"`
 }
 
-// CostCalculator 估算成本（简化：按 provider/model 的固定单价）
-type CostCalculator interface {
+// ICostCalculator 估算成本（简化：按 provider/model 的固定单价）
+type ICostCalculator interface {
 	EstimateCost(provider string, model string, requestTokens int, responseTokens int, inputPer1k float64, outputPer1k float64) float64
 }

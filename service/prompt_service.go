@@ -14,7 +14,7 @@ import (
 	"gochen/errorx"
 )
 
-type PromptService interface {
+type IPromptService interface {
 	GetPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
 	GetPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error)
 	RenderPrompt(ctx context.Context, tmpl *entity.PromptTemplate, vars map[string]any) (string, error)
@@ -36,7 +36,7 @@ type promptServiceImpl struct {
 	abTests   repo.IABTestRepository
 }
 
-func NewPromptService(templates repo.IPromptTemplateRepository, versions repo.IPromptVersionRepository, abTests repo.IABTestRepository) PromptService {
+func NewPromptService(templates repo.IPromptTemplateRepository, versions repo.IPromptVersionRepository, abTests repo.IABTestRepository) IPromptService {
 	return &promptServiceImpl{templates: templates, versions: versions, abTests: abTests}
 }
 

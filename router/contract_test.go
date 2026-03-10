@@ -177,5 +177,5 @@ func TestMetricsRoutesList_UsesPaginatedSuccessEnvelope(t *testing.T) {
 }
 
 var _ httpx.IContext = (*routerTestContext)(nil)
-var _ service.ProviderManager = (*stubProviderManager)(nil)
-var _ repo.MetricsRepo = (*stubMetricsRepo)(nil)
+var _ service.IProviderManager = (*stubProviderManager)(nil)
+var _ repo.IMetricsRepo = (*stubMetricsRepo)(nil)

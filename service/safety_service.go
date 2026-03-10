@@ -16,8 +16,8 @@ import (
 	"gochen/policy/ratelimit"
 )
 
-// SafetyService 聚合安全与审计能力（首版提供关键词过滤与系统安全提示）
-type SafetyService interface {
+// ISafetyService 聚合安全与审计能力（首版提供关键词过滤与系统安全提示）
+type ISafetyService interface {
 	GetActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error)
 	BuildSystemPrompt(ctx context.Context) (string, error)
 	ValidateInput(ctx context.Context, input string) (*SafetyResult, error)
@@ -31,15 +31,15 @@ type SafetyService interface {
 }
 
 type safetyServiceImpl struct {
-	repo           repo.SafetyPolicyRepo
-	auditRepo      repo.AuditLogRepo
-	rateRepo       repo.RateLimitRepo
+	repo           repo.ISafetyPolicyRepo
+	auditRepo      repo.IAuditLogRepo
+	rateRepo       repo.IRateLimitRepo
 	rateLimitPerM  int
 	rateLimitBurst int
 	rateLimiter    *ratelimit.Limiter
 }
 
-func NewSafetyService(repo repo.SafetyPolicyRepo, audit repo.AuditLogRepo, rate repo.RateLimitRepo) SafetyService {
+func NewSafetyService(repo repo.ISafetyPolicyRepo, audit repo.IAuditLogRepo, rate repo.IRateLimitRepo) ISafetyService {
 	svc := &safetyServiceImpl{
 		repo:           repo,
 		auditRepo:      audit,

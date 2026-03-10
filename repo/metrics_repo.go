@@ -9,8 +9,8 @@ import (
 	"gochen/errorx"
 )
 
-// MetricsRepo 持久化 LLM 调用指标
-type MetricsRepo interface {
+// IMetricsRepo 持久化 LLM 调用指标
+type IMetricsRepo interface {
 	Save(ctx context.Context, m *entity.Metrics) error
 	Aggregate(ctx context.Context, filter entity.MetricsFilter) (*entity.MetricsReport, error)
 	AggregateByVariant(ctx context.Context, filter entity.MetricsFilter) ([]*entity.VariantMetricsReport, error)
@@ -23,7 +23,7 @@ type metricsRepoImpl struct {
 	model ormModel
 }
 
-func NewMetricsRepo(o orm.IOrm) MetricsRepo {
+func NewMetricsRepo(o orm.IOrm) IMetricsRepo {
 	return &metricsRepoImpl{
 		orm:   o,
 		model: newOrmModel(&entity.Metrics{}, (entity.Metrics{}).TableName()),

@@ -43,11 +43,11 @@ type ChatResponse struct {
 	Content string
 }
 
-type Client interface {
+type IClient interface {
 	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 }
 
-func NewClient(cfg *Config) (Client, error) {
+func NewClient(cfg *Config) (IClient, error) {
 	if cfg == nil || cfg.Provider == "" {
 		return nil, errorx.New(errorx.InvalidInput, "llm.Config 不能为空且 provider 必须设置")
 	}

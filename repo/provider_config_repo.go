@@ -8,8 +8,8 @@ import (
 	"gochen/errorx"
 )
 
-// ProviderConfigRepo 管理多源 LLM 端点配置
-type ProviderConfigRepo interface {
+// IProviderConfigRepo 管理多源 LLM 端点配置
+type IProviderConfigRepo interface {
 	// ListAll 返回所有配置（包括未启用的），按 Priority 升序、ID 升序排序
 	ListAll(ctx context.Context) ([]*entity.ProviderConfig, error)
 	// ReplaceAll 用新的配置集合替换现有配置（用于运维批量更新）
@@ -23,7 +23,7 @@ type providerConfigRepoImpl struct {
 	model ormModel
 }
 
-func NewProviderConfigRepo(o orm.IOrm) ProviderConfigRepo {
+func NewProviderConfigRepo(o orm.IOrm) IProviderConfigRepo {
 	return &providerConfigRepoImpl{
 		orm:   o,
 		model: newOrmModel(&entity.ProviderConfig{}, (entity.ProviderConfig{}).TableName()),

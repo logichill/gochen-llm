@@ -12,10 +12,10 @@ import (
 
 // MetricsRoutes 提供指标看板接口（时间窗口聚合与原始日志分页）
 type MetricsRoutes struct {
-	metrics repo.MetricsRepo
+	metrics repo.IMetricsRepo
 }
 
-func NewMetricsRoutes(metrics repo.MetricsRepo) *MetricsRoutes {
+func NewMetricsRoutes(metrics repo.IMetricsRepo) *MetricsRoutes {
 	return &MetricsRoutes{metrics: metrics}
 }
 

@@ -14,17 +14,17 @@ import (
 
 // LLMAdminRoutes 提供 LLM 模块的管理接口
 type LLMAdminRoutes struct {
-	manager    service.ProviderManager
-	safetyRepo repo.SafetyPolicyRepo
-	safetySvc  service.SafetyService
-	metrics    repo.MetricsRepo
-	cfgRepo    repo.ProviderConfigRepo
-	auditRepo  repo.AuditLogRepo
-	rateRepo   repo.RateLimitRepo
+	manager    service.IProviderManager
+	safetyRepo repo.ISafetyPolicyRepo
+	safetySvc  service.ISafetyService
+	metrics    repo.IMetricsRepo
+	cfgRepo    repo.IProviderConfigRepo
+	auditRepo  repo.IAuditLogRepo
+	rateRepo   repo.IRateLimitRepo
 	utils      *hbasic.Utils
 }
 
-func NewLLMAdminRoutes(manager service.ProviderManager, safety repo.SafetyPolicyRepo, metrics repo.MetricsRepo, cfgRepo repo.ProviderConfigRepo, audit repo.AuditLogRepo, rate repo.RateLimitRepo, safetySvc service.SafetyService) *LLMAdminRoutes {
+func NewLLMAdminRoutes(manager service.IProviderManager, safety repo.ISafetyPolicyRepo, metrics repo.IMetricsRepo, cfgRepo repo.IProviderConfigRepo, audit repo.IAuditLogRepo, rate repo.IRateLimitRepo, safetySvc service.ISafetyService) *LLMAdminRoutes {
 	return &LLMAdminRoutes{
 		manager:    manager,
 		safetyRepo: safety,

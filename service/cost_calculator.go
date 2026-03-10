@@ -15,7 +15,7 @@ type pricePair struct {
 	Output float64
 }
 
-func NewCostCalculator() CostCalculator {
+func NewCostCalculator() ICostCalculator {
 	calc := &simpleCostCalculator{
 		unit:               map[string]pricePair{},
 		defaultInputPer1k:  0,

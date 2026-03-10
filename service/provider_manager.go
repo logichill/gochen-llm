@@ -18,8 +18,8 @@ import (
 	runtime "gochen/task"
 )
 
-// ProviderManager 抽象多源 LLM 管理器，负责端点选择与简单故障切换。
-type ProviderManager interface {
+// IProviderManager 抽象多源 LLM 管理器，负责端点选择与简单故障切换。
+type IProviderManager interface {
 	Start(ctx context.Context) error
 	Stop(ctx context.Context) error
 	ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error)
@@ -31,7 +31,7 @@ type ProviderManager interface {
 
 type endpointState struct {
 	cfg           *entity.ProviderConfig
-	client        client.Client
+	client        client.IClient
 	cooldownUntil int64 // UnixNano，原子访问；0 表示无冷却
 	// 健康与熔断
 	healthFailedStreak  uint32
@@ -70,7 +70,7 @@ type healthSample struct {
 }
 
 type providerManagerImpl struct {
-	repo   repo.ProviderConfigRepo
+	repo   repo.IProviderConfigRepo
 	logger logging.ILogger
 	super  *runtime.TaskSupervisor
 
@@ -83,7 +83,7 @@ type providerManagerImpl struct {
 	cancel      context.CancelFunc
 }
 
-func NewProviderManager(repo repo.ProviderConfigRepo, logger logging.ILogger) (ProviderManager, error) {
+func NewProviderManager(repo repo.IProviderConfigRepo, logger logging.ILogger) (IProviderManager, error) {
 	m := &providerManagerImpl{
 		repo:      repo,
 		logger:    logger,

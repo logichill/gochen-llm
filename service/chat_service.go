@@ -15,7 +15,7 @@ import (
 	runtime "gochen/task"
 )
 
-type ChatService interface {
+type IChatService interface {
 	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 	ChatWithPrompt(ctx context.Context, req *PromptChatRequest) (*ChatResponse, error)
 	StreamChat(ctx context.Context, req *ChatRequest) (<-chan *ChatChunk, error)
@@ -23,14 +23,14 @@ type ChatService interface {
 }
 
 type chatServiceImpl struct {
-	manager     ProviderManager
-	prompt      PromptService
-	safety      SafetyService
-	metricsRepo repo.MetricsRepo
-	costCalc    CostCalculator
+	manager     IProviderManager
+	prompt      IPromptService
+	safety      ISafetyService
+	metricsRepo repo.IMetricsRepo
+	costCalc    ICostCalculator
 }
 
-func NewChatService(manager ProviderManager, prompt PromptService, safety SafetyService, metrics repo.MetricsRepo, costCalc CostCalculator) ChatService {
+func NewChatService(manager IProviderManager, prompt IPromptService, safety ISafetyService, metrics repo.IMetricsRepo, costCalc ICostCalculator) IChatService {
 	return &chatServiceImpl{
 		manager:     manager,
 		prompt:      prompt,

@@ -8,8 +8,8 @@ import (
 	"gochen/errorx"
 )
 
-// ConversationRepo 会话仓储
-type ConversationRepo interface {
+// IConversationRepo 会话仓储
+type IConversationRepo interface {
 	CreateConversation(ctx context.Context, conv *entity.Conversation) error
 	GetConversation(ctx context.Context, id int64) (*entity.Conversation, error)
 	UpdateConversation(ctx context.Context, conv *entity.Conversation) error
@@ -24,7 +24,7 @@ type conversationRepoImpl struct {
 	messageModel      ormModel
 }
 
-func NewConversationRepo(o orm.IOrm) ConversationRepo {
+func NewConversationRepo(o orm.IOrm) IConversationRepo {
 	return &conversationRepoImpl{
 		orm:               o,
 		conversationModel: newOrmModel(&entity.Conversation{}, (entity.Conversation{}).TableName()),

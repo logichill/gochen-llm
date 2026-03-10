@@ -8,8 +8,8 @@ import (
 	"gochen/errorx"
 )
 
-// SafetyPolicyRepo 管理系统级 LLM 安全策略
-type SafetyPolicyRepo interface {
+// ISafetyPolicyRepo 管理系统级 LLM 安全策略
+type ISafetyPolicyRepo interface {
 	GetActive(ctx context.Context) (*entity.SafetyPolicy, error)
 	Save(ctx context.Context, policy *entity.SafetyPolicy) error
 }
@@ -19,7 +19,7 @@ type safetyPolicyRepoImpl struct {
 	model ormModel
 }
 
-func NewSafetyPolicyRepo(o orm.IOrm) SafetyPolicyRepo {
+func NewSafetyPolicyRepo(o orm.IOrm) ISafetyPolicyRepo {
 	return &safetyPolicyRepoImpl{
 		orm:   o,
 		model: newOrmModel(&entity.SafetyPolicy{}, (entity.SafetyPolicy{}).TableName()),

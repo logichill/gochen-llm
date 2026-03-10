@@ -47,7 +47,7 @@ func NewModule() (server.IModule, error) {
 			if container == nil {
 				return errorx.New(errorx.Internal, "container is nil")
 			}
-			return container.Invoke(func(pm service.ProviderManager) error {
+			return container.Invoke(func(pm service.IProviderManager) error {
 				return pm.Start(ctx)
 			})
 		},
@@ -55,7 +55,7 @@ func NewModule() (server.IModule, error) {
 			if container == nil {
 				return nil
 			}
-			return container.Invoke(func(pm service.ProviderManager) error {
+			return container.Invoke(func(pm service.IProviderManager) error {
 				return pm.Stop(ctx)
 			})
 		},

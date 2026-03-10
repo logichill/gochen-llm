@@ -10,8 +10,8 @@ import (
 	"gochen/errorx"
 )
 
-// ConversationService 会话服务
-type ConversationService interface {
+// IConversationService 会话服务
+type IConversationService interface {
 	CreateConversation(ctx context.Context, userID int64, metadata map[string]any) (*entity.Conversation, error)
 	GetConversation(ctx context.Context, conversationID int64) (*entity.Conversation, error)
 	AddMessage(ctx context.Context, conversationID int64, msg *entity.Message) error
@@ -22,10 +22,10 @@ type ConversationService interface {
 }
 
 type conversationServiceImpl struct {
-	repo repo.ConversationRepo
+	repo repo.IConversationRepo
 }
 
-func NewConversationService(repo repo.ConversationRepo) ConversationService {
+func NewConversationService(repo repo.IConversationRepo) IConversationService {
 	return &conversationServiceImpl{repo: repo}
 }
 

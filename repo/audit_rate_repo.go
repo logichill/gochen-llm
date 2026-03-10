@@ -9,14 +9,14 @@ import (
 	"gochen/errorx"
 )
 
-// AuditLogRepo 持久化审计日志
-type AuditLogRepo interface {
+// IAuditLogRepo 持久化审计日志
+type IAuditLogRepo interface {
 	Save(ctx context.Context, log *entity.AuditLog) error
 	List(ctx context.Context, filter AuditLogFilter, limit, offset int) ([]*entity.AuditLog, int64, error)
 }
 
-// RateLimitRepo 持久化限流窗口
-type RateLimitRepo interface {
+// IRateLimitRepo 持久化限流窗口
+type IRateLimitRepo interface {
 	Increment(ctx context.Context, userID int64, resourceType string, windowStart time.Time, windowSizeSeconds int, deltaReq int, deltaTokens int) (*entity.RateLimit, error)
 	ListRecent(ctx context.Context, resourceType string, limit int) ([]*entity.RateLimit, error)
 	SumSince(ctx context.Context, resourceType string, since time.Time) (int64, error)
@@ -41,14 +41,14 @@ type AuditLogFilter struct {
 	EndAt        *time.Time
 }
 
-func NewAuditLogRepo(o orm.IOrm) AuditLogRepo {
+func NewAuditLogRepo(o orm.IOrm) IAuditLogRepo {
 	return &auditLogRepoImpl{
 		orm:   o,
 		model: newOrmModel(&entity.AuditLog{}, (entity.AuditLog{}).TableName()),
 	}
 }
 
-func NewRateLimitRepo(o orm.IOrm) RateLimitRepo {
+func NewRateLimitRepo(o orm.IOrm) IRateLimitRepo {
 	return &rateLimitRepoImpl{
 		orm:   o,
 		model: newOrmModel(&entity.RateLimit{}, (entity.RateLimit{}).TableName()),
