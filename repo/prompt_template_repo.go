@@ -23,6 +23,7 @@ type PromptFilter struct {
 // IPromptTemplateRepository 负责提示词模板的主表读写。
 type IPromptTemplateRepository interface {
 	domaincrud.IRepository[*entity.PromptTemplate, int64]
+	domaincrud.IQueryRepository[*entity.PromptTemplate, int64]
 	Upsert(ctx context.Context, tmpl *entity.PromptTemplate) error
 	FindEffective(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
 }
