@@ -20,6 +20,7 @@ type abTestRepoImpl struct {
 	abTestModel ormModel
 }
 
+// NewABTestRepo 创建A/B测试仓储。
 func NewABTestRepo(o orm.IOrm) IABTestRepository {
 	return &abTestRepoImpl{
 		orm:         o,
@@ -27,6 +28,7 @@ func NewABTestRepo(o orm.IOrm) IABTestRepository {
 	}
 }
 
+// Save 保存数据。
 func (r *abTestRepoImpl) Save(ctx context.Context, test *entity.ABTest) error {
 	model, err := r.abTestModel.model(r.orm)
 	if err != nil {
@@ -38,6 +40,7 @@ func (r *abTestRepoImpl) Save(ctx context.Context, test *entity.ABTest) error {
 	return nil
 }
 
+// Update 更新记录。
 func (r *abTestRepoImpl) Update(ctx context.Context, test *entity.ABTest) error {
 	model, err := r.abTestModel.model(r.orm)
 	if err != nil {
@@ -54,6 +57,7 @@ func (r *abTestRepoImpl) Update(ctx context.Context, test *entity.ABTest) error 
 	return nil
 }
 
+// Get 返回当前值。
 func (r *abTestRepoImpl) Get(ctx context.Context, id int64) (*entity.ABTest, error) {
 	var test entity.ABTest
 	model, err := r.abTestModel.model(r.orm)

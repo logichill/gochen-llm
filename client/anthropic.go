@@ -15,6 +15,7 @@ type anthropicClient struct {
 	*httpClient
 }
 
+// newAnthropicClient 创建Anthropic客户端。
 func newAnthropicClient(cfg *Config) *anthropicClient {
 	return &anthropicClient{httpClient: newHTTPClient(cfg)}
 }
@@ -41,6 +42,7 @@ type anthropicChatResponse struct {
 	Content []anthropicTextContent `json:"content"`
 }
 
+// Chat 发起对话请求。
 func (c *anthropicClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if ctx == nil {
 		return nil, errorx.New(errorx.InvalidInput, "ctx is nil")

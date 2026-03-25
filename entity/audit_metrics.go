@@ -19,6 +19,7 @@ type AuditLog struct {
 	CreatedAt    time.Time `gorm:"autoCreateTime;index:idx_llm_audit_logs_created_at"` // 创建时间
 }
 
+// TableName 返回数据表名。
 func (AuditLog) TableName() string {
 	return "llm_audit_logs"
 }
@@ -44,6 +45,7 @@ type Metrics struct {
 	CreatedAt      time.Time `gorm:"autoCreateTime;index:idx_llm_metrics_created_at"` // 创建时间
 }
 
+// TableName 返回数据表名。
 func (Metrics) TableName() string {
 	return "llm_metrics"
 }
@@ -62,6 +64,7 @@ type RateLimit struct {
 	UpdatedAt         time.Time `gorm:"autoUpdateTime"`           // 记录更新时间
 }
 
+// TableName 返回数据表名。
 func (RateLimit) TableName() string {
 	return "llm_rate_limits"
 }

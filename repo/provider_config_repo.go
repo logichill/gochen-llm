@@ -23,6 +23,7 @@ type providerConfigRepoImpl struct {
 	model ormModel
 }
 
+// NewProviderConfigRepo 创建提供者配置仓储。
 func NewProviderConfigRepo(o orm.IOrm) IProviderConfigRepo {
 	return &providerConfigRepoImpl{
 		orm:   o,
@@ -30,6 +31,7 @@ func NewProviderConfigRepo(o orm.IOrm) IProviderConfigRepo {
 	}
 }
 
+// ListAll 列出全部。
 func (r *providerConfigRepoImpl) ListAll(ctx context.Context) ([]*entity.ProviderConfig, error) {
 	var cfgs []*entity.ProviderConfig
 	model, err := r.model.model(r.orm)
@@ -45,6 +47,7 @@ func (r *providerConfigRepoImpl) ListAll(ctx context.Context) ([]*entity.Provide
 	return cfgs, nil
 }
 
+// ReplaceAll 替换全部。
 func (r *providerConfigRepoImpl) ReplaceAll(ctx context.Context, configs []*entity.ProviderConfig) error {
 	session, err := r.orm.Begin(ctx)
 	if err != nil {
@@ -79,6 +82,7 @@ func (r *providerConfigRepoImpl) ReplaceAll(ctx context.Context, configs []*enti
 	return nil
 }
 
+// UpdatePricing 更新定价。
 func (r *providerConfigRepoImpl) UpdatePricing(ctx context.Context, updates []entity.ProviderPricing) error {
 	if len(updates) == 0 {
 		return nil

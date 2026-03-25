@@ -31,12 +31,12 @@ type Conversation struct {
 	UpdatedAt    time.Time `gorm:"autoUpdateTime"` // 更新时间
 }
 
+// TableName 返回数据表名。
 func (Conversation) TableName() string {
 	return "llm_conversations"
 }
 
-// StoryConversationMetadata 故事会话的元数据结构（存储在 MetadataJSON 中）
-// 替代原 StorySegmentRecord 的 Chapter/Scene 等字段
+// StoryConversationMetadata 定义Story会话Metadata。
 type StoryConversationMetadata struct {
 	Chapter string `json:"chapter"` // 当前章节
 	Scene   string `json:"scene"`   // 当前场景
@@ -53,12 +53,12 @@ type Message struct {
 	CreatedAt      time.Time `gorm:"autoCreateTime;index:idx_llm_messages_created_at"` // 创建时间
 }
 
+// TableName 返回数据表名。
 func (Message) TableName() string {
 	return "llm_messages"
 }
 
-// StoryMessageMetadata 故事消息的元数据结构（存储在 MetadataJSON 中）
-// 替代原 StorySegmentRecord 的 HighlightTaskIDsJSON
+// StoryMessageMetadata 定义Story消息Metadata。
 type StoryMessageMetadata struct {
 	HighlightTaskIDs []int64 `json:"highlight_task_ids"` // 高亮的任务 ID
 }

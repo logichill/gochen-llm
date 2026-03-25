@@ -32,6 +32,7 @@ type rateLimitRepoImpl struct {
 	model ormModel
 }
 
+// AuditLogFilter 定义审计日志列表查询的过滤条件。
 type AuditLogFilter struct {
 	UserID       *int64
 	Action       string
@@ -41,6 +42,7 @@ type AuditLogFilter struct {
 	EndAt        *time.Time
 }
 
+// NewAuditLogRepo 创建审计日志仓储。
 func NewAuditLogRepo(o orm.IOrm) IAuditLogRepo {
 	return &auditLogRepoImpl{
 		orm:   o,
@@ -48,6 +50,7 @@ func NewAuditLogRepo(o orm.IOrm) IAuditLogRepo {
 	}
 }
 
+// NewRateLimitRepo 创建限流窗口仓储。
 func NewRateLimitRepo(o orm.IOrm) IRateLimitRepo {
 	return &rateLimitRepoImpl{
 		orm:   o,
@@ -55,6 +58,7 @@ func NewRateLimitRepo(o orm.IOrm) IRateLimitRepo {
 	}
 }
 
+// Save 持久化一条审计日志。
 func (r *auditLogRepoImpl) Save(ctx context.Context, log *entity.AuditLog) error {
 	if log == nil {
 		return errorx.New(errorx.InvalidInput, "audit log 不能为空")
@@ -69,13 +73,16 @@ func (r *auditLogRepoImpl) Save(ctx context.Context, log *entity.AuditLog) error
 	return nil
 }
 
+// List 按过滤条件分页查询审计日志。
 func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limit, offset int) ([]*entity.AuditLog, int64, error) {
+	// 1. 先构建查询条件并准备 model。
 	filterOptions := buildAuditOptions(filter)
 	model, err := r.model.model(r.orm)
 	if err != nil {
 		return nil, 0, errorx.Wrap(err, errorx.Database, "创建审计日志 model 失败")
 	}
 
+	// 2. 统一收敛分页参数，避免过大或非法的请求直接透传到底层。
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
@@ -83,6 +90,7 @@ func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limi
 		offset = 0
 	}
 
+	// 3. 先统计总数，再查询当前页数据。
 	total, err := model.Count(ctx, filterOptions...)
 	if err != nil {
 		return nil, 0, errorx.Wrap(err, errorx.Database, "统计审计日志失败")
@@ -101,7 +109,9 @@ func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limi
 	return list, total, nil
 }
 
+// Increment 对指定用户和资源类型的限流窗口做累加更新。
 func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourceType string, windowStart time.Time, windowSizeSeconds int, deltaReq int, deltaTokens int) (*entity.RateLimit, error) {
+	// 1. 先规范化调用参数，保证窗口键和默认窗口大小稳定。
 	if userID <= 0 {
 		return nil, errorx.New(errorx.InvalidInput, "userID 无效")
 	}
@@ -112,6 +122,7 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 		windowSizeSeconds = 60
 	}
 
+	// 2. 开启事务，确保“查找窗口 + 创建/累加”是一个原子过程。
 	session, err := r.orm.Begin(ctx)
 	if err != nil {
 		return nil, errorx.Wrap(err, errorx.Database, "开启限流事务失败")
@@ -128,6 +139,7 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 		return nil, errorx.Wrap(err, errorx.Database, "创建限流 model 失败")
 	}
 
+	// 3. 先尝试锁定已有窗口；没有就创建，有就原地累加计数。
 	var result entity.RateLimit
 	err = model.First(ctx, &result,
 		orm.WithWhere("user_id = ? AND resource_type = ? AND window_start = ?", userID, resourceType, windowStart),
@@ -157,6 +169,7 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 		}
 	}
 
+	// 4. 事务提交成功后再返回最终窗口快照。
 	if err := session.Commit(); err != nil {
 		return nil, errorx.Wrap(err, errorx.Database, "提交限流事务失败")
 	}
@@ -164,11 +177,15 @@ func (r *rateLimitRepoImpl) Increment(ctx context.Context, userID int64, resourc
 	return &result, nil
 }
 
+// ListRecent 查询最近的限流窗口记录。
 func (r *rateLimitRepoImpl) ListRecent(ctx context.Context, resourceType string, limit int) ([]*entity.RateLimit, error) {
+	// 1. 先拼装可选资源过滤条件。
 	opts := []orm.QueryOption{}
 	if resourceType != "" {
 		opts = append(opts, orm.WithWhere("resource_type = ?", resourceType))
 	}
+
+	// 2. 再统一排序与分页边界，保证最近窗口按时间倒序返回。
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
@@ -188,7 +205,9 @@ func (r *rateLimitRepoImpl) ListRecent(ctx context.Context, resourceType string,
 	return list, nil
 }
 
+// SumSince 统计指定时间点之后的请求总量。
 func (r *rateLimitRepoImpl) SumSince(ctx context.Context, resourceType string, since time.Time) (int64, error) {
+	// 1. 先根据资源类型和起始时间拼装聚合过滤条件。
 	opts := []orm.QueryOption{}
 	if resourceType != "" {
 		opts = append(opts, orm.WithWhere("resource_type = ?", resourceType))
@@ -197,6 +216,7 @@ func (r *rateLimitRepoImpl) SumSince(ctx context.Context, resourceType string, s
 		opts = append(opts, orm.WithWhere("window_start >= ?", since))
 	}
 
+	// 2. 再用聚合查询返回 request_count 的累计值。
 	var row struct {
 		Total int64 `json:"total"`
 	}
@@ -210,8 +230,12 @@ func (r *rateLimitRepoImpl) SumSince(ctx context.Context, resourceType string, s
 	return row.Total, nil
 }
 
+// buildAuditOptions 把审计日志过滤条件转换成 ORM 查询选项。
 func buildAuditOptions(filter AuditLogFilter) []orm.QueryOption {
+	// 1. 准备基础查询选项切片。
 	opts := []orm.QueryOption{}
+
+	// 2. 仅把非空过滤条件追加到 where 子句中，避免产生无效条件。
 	if filter.UserID != nil {
 		opts = append(opts, orm.WithWhere("user_id = ?", *filter.UserID))
 	}

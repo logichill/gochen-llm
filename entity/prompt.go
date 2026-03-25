@@ -77,8 +77,10 @@ type PromptTemplate struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"` // 更新时间
 }
 
+// GetID 返回ID。
 func (p *PromptTemplate) GetID() int64 { return p.ID }
 
+// GetVersion 返回版本。
 func (p *PromptTemplate) GetVersion() uint64 {
 	if p == nil || p.Version <= 0 {
 		return 0
@@ -86,8 +88,10 @@ func (p *PromptTemplate) GetVersion() uint64 {
 	return uint64(p.Version)
 }
 
+// SetID 设置ID。
 func (p *PromptTemplate) SetID(id int64) { p.ID = id }
 
+// Validate 校验输入。
 func (p *PromptTemplate) Validate() error {
 	if p == nil {
 		return nil
@@ -113,6 +117,7 @@ type PromptVersion struct {
 	CreatedAt     time.Time `gorm:"autoCreateTime"` // 创建时间
 }
 
+// TableName 返回数据表名。
 func (PromptVersion) TableName() string {
 	return "llm_prompt_versions"
 }
@@ -132,6 +137,7 @@ type ABTest struct {
 	UpdatedAt    time.Time `gorm:"autoUpdateTime"`                                                   // 更新时间
 }
 
+// TableName 返回数据表名。
 func (ABTest) TableName() string {
 	return "llm_ab_tests"
 }
@@ -150,7 +156,7 @@ const (
 	PromptCategorySummary = "summary"
 )
 
-// StoryWorldMetadata 故事世界的元数据结构（存储在 MetadataJSON 中）
+// StoryWorldMetadata 定义StoryWorldMetadata。
 type StoryWorldMetadata struct {
 	DisplayName string `json:"display_name"` // 展示名称，如 "森林大冒险"
 	WorldKey    string `json:"world_key"`    // 唯一标识，如 "forest"
@@ -161,7 +167,7 @@ type StoryWorldMetadata struct {
 	SortOrder   int    `json:"sort_order"`   // 排序权重
 }
 
-// UserPreferencesMetadata 用户偏好的元数据结构（原 GrowthProfile，存储在 MetadataJSON 中）
+// UserPreferencesMetadata 定义用户PreferencesMetadata。
 type UserPreferencesMetadata struct {
 	Age         int      `json:"age"`          // 年龄
 	Grade       string   `json:"grade"`        // 年级或学段

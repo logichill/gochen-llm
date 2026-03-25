@@ -16,6 +16,7 @@ type httpClient struct {
 	cfg  *Config
 }
 
+// newHTTPClient 创建HTTP客户端。
 func newHTTPClient(cfg *Config) *httpClient {
 	timeout := cfg.Timeout
 	if timeout <= 0 {
@@ -27,6 +28,7 @@ func newHTTPClient(cfg *Config) *httpClient {
 	}
 }
 
+// doRequest 处理do请求。
 func (c *httpClient) doRequest(ctx context.Context, url string, payload any, parse func([]byte) (*ChatResponse, error)) (*ChatResponse, error) {
 	if ctx == nil {
 		return nil, errorx.New(errorx.InvalidInput, "ctx is nil")
@@ -67,6 +69,7 @@ func (c *httpClient) doRequest(ctx context.Context, url string, payload any, par
 	return parse(respBytes)
 }
 
+// ioReadAll 处理io读取全部。
 func ioReadAll(r io.Reader) ([]byte, error) {
 	return io.ReadAll(r)
 }

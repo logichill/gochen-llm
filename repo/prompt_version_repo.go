@@ -19,6 +19,7 @@ type promptVersionRepoImpl struct {
 	versionModel ormModel
 }
 
+// NewPromptVersionRepo 创建提示词版本仓储。
 func NewPromptVersionRepo(o orm.IOrm) IPromptVersionRepository {
 	return &promptVersionRepoImpl{
 		orm:          o,
@@ -26,6 +27,7 @@ func NewPromptVersionRepo(o orm.IOrm) IPromptVersionRepository {
 	}
 }
 
+// Save 保存数据。
 func (r *promptVersionRepoImpl) Save(ctx context.Context, version *entity.PromptVersion) error {
 	model, err := r.versionModel.model(r.orm)
 	if err != nil {
@@ -37,6 +39,7 @@ func (r *promptVersionRepoImpl) Save(ctx context.Context, version *entity.Prompt
 	return nil
 }
 
+// Get 返回当前值。
 func (r *promptVersionRepoImpl) Get(ctx context.Context, templateID int64, version int) (*entity.PromptVersion, error) {
 	var v entity.PromptVersion
 	model, err := r.versionModel.model(r.orm)

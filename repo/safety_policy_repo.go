@@ -19,6 +19,7 @@ type safetyPolicyRepoImpl struct {
 	model ormModel
 }
 
+// NewSafetyPolicyRepo 创建安全策略仓储。
 func NewSafetyPolicyRepo(o orm.IOrm) ISafetyPolicyRepo {
 	return &safetyPolicyRepoImpl{
 		orm:   o,
@@ -26,6 +27,7 @@ func NewSafetyPolicyRepo(o orm.IOrm) ISafetyPolicyRepo {
 	}
 }
 
+// GetActive 返回当前生效项。
 func (r *safetyPolicyRepoImpl) GetActive(ctx context.Context) (*entity.SafetyPolicy, error) {
 	var policy entity.SafetyPolicy
 	model, err := r.model.model(r.orm)
@@ -42,6 +44,7 @@ func (r *safetyPolicyRepoImpl) GetActive(ctx context.Context) (*entity.SafetyPol
 	return &policy, nil
 }
 
+// Save 保存数据。
 func (r *safetyPolicyRepoImpl) Save(ctx context.Context, policy *entity.SafetyPolicy) error {
 	if policy == nil {
 		return nil

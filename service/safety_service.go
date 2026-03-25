@@ -39,6 +39,7 @@ type safetyServiceImpl struct {
 	rateLimiter    *ratelimit.Limiter
 }
 
+// NewSafetyService 创建安全服务。
 func NewSafetyService(repo repo.ISafetyPolicyRepo, audit repo.IAuditLogRepo, rate repo.IRateLimitRepo) ISafetyService {
 	svc := &safetyServiceImpl{
 		repo:           repo,
@@ -51,6 +52,7 @@ func NewSafetyService(repo repo.ISafetyPolicyRepo, audit repo.IAuditLogRepo, rat
 	return svc
 }
 
+// initRateLimiter 处理初始化速率Limiter。
 func (s *safetyServiceImpl) initRateLimiter() {
 	if s.rateLimitPerM <= 0 {
 		return
@@ -88,6 +90,7 @@ func (s *safetyServiceImpl) initRateLimiter() {
 	})
 }
 
+// GetActivePolicy 返回生效中的策略。
 func (s *safetyServiceImpl) GetActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error) {
 	if s.repo == nil {
 		return nil, nil
@@ -95,6 +98,7 @@ func (s *safetyServiceImpl) GetActivePolicy(ctx context.Context) (*entity.Safety
 	return s.repo.GetActive(ctx)
 }
 
+// BuildSystemPrompt 构造系统提示词。
 func (s *safetyServiceImpl) BuildSystemPrompt(ctx context.Context) (string, error) {
 	policy, err := s.GetActivePolicy(ctx)
 	if err != nil || policy == nil || !policy.Enabled {
@@ -103,6 +107,7 @@ func (s *safetyServiceImpl) BuildSystemPrompt(ctx context.Context) (string, erro
 	return strings.TrimSpace(policy.GlobalSystemPrompt), nil
 }
 
+// GetRateLimitSettings 返回速率限额设置。
 func (s *safetyServiceImpl) GetRateLimitSettings() RateLimitSettings {
 	return RateLimitSettings{
 		PerMinute: s.rateLimitPerM,
@@ -110,14 +115,17 @@ func (s *safetyServiceImpl) GetRateLimitSettings() RateLimitSettings {
 	}
 }
 
+// ValidateInput 校验Input。
 func (s *safetyServiceImpl) ValidateInput(ctx context.Context, input string) (*SafetyResult, error) {
 	return s.validateText(ctx, input)
 }
 
+// ValidateOutput 校验Output。
 func (s *safetyServiceImpl) ValidateOutput(ctx context.Context, output string) (*SafetyResult, error) {
 	return s.validateText(ctx, output)
 }
 
+// FilterContent 过滤Content。
 func (s *safetyServiceImpl) FilterContent(ctx context.Context, content string) (string, error) {
 	res, err := s.validateText(ctx, content)
 	if err != nil || res == nil || res.Allowed {
@@ -126,6 +134,7 @@ func (s *safetyServiceImpl) FilterContent(ctx context.Context, content string) (
 	return "内容涉及不适宜主题，已被过滤。", nil
 }
 
+// CheckRateLimit 处理Check速率限额。
 func (s *safetyServiceImpl) CheckRateLimit(ctx context.Context, userID int64) (*RateLimitResult, error) {
 	if userID <= 0 {
 		return &RateLimitResult{Allowed: true}, nil
@@ -170,6 +179,7 @@ func (s *safetyServiceImpl) CheckRateLimit(ctx context.Context, userID int64) (*
 	return &RateLimitResult{Allowed: true}, nil
 }
 
+// RecordAuditLog 处理记录审计日志。
 func (s *safetyServiceImpl) RecordAuditLog(ctx context.Context, log *entity.AuditLog) error {
 	if log == nil {
 		return errorx.New(errorx.InvalidInput, "audit log 不能为空")
@@ -181,6 +191,7 @@ func (s *safetyServiceImpl) RecordAuditLog(ctx context.Context, log *entity.Audi
 	return s.auditRepo.Save(ctx, log)
 }
 
+// DetectPII 检测敏感信息。
 func (s *safetyServiceImpl) DetectPII(ctx context.Context, content string) (*SafetyResult, error) {
 	piiRegex := regexp.MustCompile(`(?i)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\d{3,4}[- ]?\d{6,8})`)
 	if piiRegex.MatchString(content) {
@@ -189,12 +200,14 @@ func (s *safetyServiceImpl) DetectPII(ctx context.Context, content string) (*Saf
 	return &SafetyResult{Allowed: true}, nil
 }
 
+// MaskPII 脱敏敏感信息。
 func (s *safetyServiceImpl) MaskPII(ctx context.Context, content string) (string, error) {
 	piiRegex := regexp.MustCompile(`(?i)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|\d{3,4}[- ]?\d{6,8})`)
 	masked := piiRegex.ReplaceAllString(content, "[PII]")
 	return masked, nil
 }
 
+// allowUser 判断用户。
 func (s *safetyServiceImpl) allowUser(userID int64) (bool, int) {
 	if s.rateLimiter == nil {
 		return true, 0
@@ -206,6 +219,7 @@ func (s *safetyServiceImpl) allowUser(userID int64) (bool, int) {
 	return false, s.estimateRetryAfter()
 }
 
+// estimateRetryAfter 估算重试After。
 func (s *safetyServiceImpl) estimateRetryAfter() int {
 	if s.rateLimitPerM <= 0 {
 		return 1
@@ -221,6 +235,7 @@ func (s *safetyServiceImpl) estimateRetryAfter() int {
 	return retryAfter
 }
 
+// validateText 校验Text。
 func (s *safetyServiceImpl) validateText(ctx context.Context, text string) (*SafetyResult, error) {
 	policy, err := s.GetActivePolicy(ctx)
 	if err != nil || policy == nil || !policy.Enabled {
@@ -254,6 +269,7 @@ type scaledClock struct {
 	origin time.Time
 }
 
+// newScaledClock 创建缩放时钟。
 func newScaledClock(base clock.IClock, factor float64) clock.IClock {
 	if base == nil {
 		base = clock.NewRealClock()
@@ -268,6 +284,7 @@ func newScaledClock(base clock.IClock, factor float64) clock.IClock {
 	}
 }
 
+// Now 处理Now。
 func (c *scaledClock) Now() time.Time {
 	if c == nil || c.base == nil {
 		return time.Now()
@@ -278,6 +295,7 @@ func (c *scaledClock) Now() time.Time {
 	return c.origin.Add(scaled)
 }
 
+// NewTimer 创建定时器。
 func (c *scaledClock) NewTimer(d time.Duration) clock.ITimer {
 	if c == nil || c.base == nil {
 		return clock.NewRealClock().NewTimer(d)
@@ -285,6 +303,7 @@ func (c *scaledClock) NewTimer(d time.Duration) clock.ITimer {
 	return c.base.NewTimer(time.Duration(float64(d) * c.factor))
 }
 
+// NewTicker 创建Ticker。
 func (c *scaledClock) NewTicker(d time.Duration) clock.ITicker {
 	if c == nil || c.base == nil {
 		return clock.NewRealClock().NewTicker(d)

@@ -12,6 +12,7 @@ import (
 	"gochen/ident"
 )
 
+// PromptFilter 定义提示词过滤条件。
 type PromptFilter struct {
 	Name     string
 	Category string
@@ -34,6 +35,7 @@ type promptTemplateRepoImpl struct {
 	templateModel ormModel
 }
 
+// NewPromptTemplateRepo 创建提示词Template仓储。
 func NewPromptTemplateRepo(o orm.IOrm) (IPromptTemplateRepository, error) {
 	base, err := ormrepo.NewRepo[*entity.PromptTemplate, int64](
 		o,

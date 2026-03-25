@@ -25,10 +25,12 @@ type conversationServiceImpl struct {
 	repo repo.IConversationRepo
 }
 
+// NewConversationService 创建会话服务。
 func NewConversationService(repo repo.IConversationRepo) IConversationService {
 	return &conversationServiceImpl{repo: repo}
 }
 
+// CreateConversation 创建会话。
 func (s *conversationServiceImpl) CreateConversation(ctx context.Context, userID int64, metadata map[string]any) (*entity.Conversation, error) {
 	if userID <= 0 {
 		return nil, errorx.New(errorx.Validation, "userID 无效")
@@ -61,10 +63,12 @@ func (s *conversationServiceImpl) CreateConversation(ctx context.Context, userID
 	return conv, nil
 }
 
+// GetConversation 返回会话。
 func (s *conversationServiceImpl) GetConversation(ctx context.Context, conversationID int64) (*entity.Conversation, error) {
 	return s.repo.GetConversation(ctx, conversationID)
 }
 
+// AddMessage 添加消息。
 func (s *conversationServiceImpl) AddMessage(ctx context.Context, conversationID int64, msg *entity.Message) error {
 	if msg == nil {
 		return errorx.New(errorx.Validation, "消息不能为空")
@@ -73,6 +77,7 @@ func (s *conversationServiceImpl) AddMessage(ctx context.Context, conversationID
 	return s.repo.AddMessage(ctx, msg)
 }
 
+// GetMessages 返回消息集合。
 func (s *conversationServiceImpl) GetMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
 	if limit <= 0 {
 		limit = 50
@@ -80,6 +85,7 @@ func (s *conversationServiceImpl) GetMessages(ctx context.Context, conversationI
 	return s.repo.GetMessages(ctx, conversationID, limit)
 }
 
+// SummarizeConversation 汇总会话。
 func (s *conversationServiceImpl) SummarizeConversation(ctx context.Context, conversationID int64) (string, error) {
 	msgs, err := s.repo.GetMessages(ctx, conversationID, 50)
 	if err != nil {
@@ -107,6 +113,7 @@ func (s *conversationServiceImpl) SummarizeConversation(ctx context.Context, con
 	return summary, nil
 }
 
+// CreateBranch 创建分支。
 func (s *conversationServiceImpl) CreateBranch(ctx context.Context, conversationID int64, fromMessageID int64) (*entity.Conversation, error) {
 	base, err := s.repo.GetConversation(ctx, conversationID)
 	if err != nil {
@@ -138,6 +145,7 @@ func (s *conversationServiceImpl) CreateBranch(ctx context.Context, conversation
 	return branch, nil
 }
 
+// CompressHistory 处理压缩历史。
 func (s *conversationServiceImpl) CompressHistory(ctx context.Context, conversationID int64) error {
 	// 默认保留最近 100 条消息
 	return s.repo.TrimMessages(ctx, conversationID, 100)

@@ -15,6 +15,7 @@ import (
 	runtime "gochen/task"
 )
 
+// IChatService 抽象对话服务能力接口。
 type IChatService interface {
 	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 	ChatWithPrompt(ctx context.Context, req *PromptChatRequest) (*ChatResponse, error)
@@ -30,6 +31,7 @@ type chatServiceImpl struct {
 	costCalc    ICostCalculator
 }
 
+// NewChatService 创建对话服务。
 func NewChatService(manager IProviderManager, prompt IPromptService, safety ISafetyService, metrics repo.IMetricsRepo, costCalc ICostCalculator) IChatService {
 	return &chatServiceImpl{
 		manager:     manager,
@@ -40,6 +42,7 @@ func NewChatService(manager IProviderManager, prompt IPromptService, safety ISaf
 	}
 }
 
+// Chat 发起对话请求。
 func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if req == nil {
 		return nil, errorx.New(errorx.InvalidInput, "ChatRequest 不能为空")
@@ -195,6 +198,7 @@ func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 	return result, nil
 }
 
+// ChatWithPrompt 为带提示词发起对话请求。
 func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatRequest) (*ChatResponse, error) {
 	if req == nil {
 		return nil, errorx.New(errorx.InvalidInput, "PromptChatRequest 不能为空")
@@ -258,6 +262,7 @@ func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatReq
 	return resp, nil
 }
 
+// StreamChat 处理Stream对话。
 func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-chan *ChatChunk, error) {
 	if req == nil {
 		return nil, errorx.New(errorx.InvalidInput, "ChatRequest 不能为空")
@@ -285,6 +290,7 @@ func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-c
 	return ch, nil
 }
 
+// BatchChat 处理批量对话。
 func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([]*ChatResponse, error) {
 	if len(reqs) == 0 {
 		return nil, nil
@@ -335,6 +341,7 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 	return result, nil
 }
 
+// convertMessages 转换消息集合。
 func convertMessages(msgs []Message) []client.ChatMessage {
 	result := make([]client.ChatMessage, 0, len(msgs))
 	for _, m := range msgs {
@@ -350,6 +357,7 @@ func convertMessages(msgs []Message) []client.ChatMessage {
 	return result
 }
 
+// joinMessages 处理join消息集合。
 func joinMessages(msgs []Message) string {
 	var sb strings.Builder
 	for _, m := range msgs {
@@ -399,6 +407,7 @@ func chunkContent(text string, size int) []string {
 	return chunks
 }
 
+// errorLabel 处理错误标签。
 func errorLabel(err error) string {
 	if err == nil {
 		return ""

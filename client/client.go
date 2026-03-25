@@ -7,6 +7,7 @@ import (
 	"gochen/errorx"
 )
 
+// Provider 定义提供者。
 type Provider string
 
 const (
@@ -17,6 +18,7 @@ const (
 	ProviderMock             Provider = "mock"
 )
 
+// Config 定义相关配置。
 type Config struct {
 	Provider          Provider
 	APIKey            string
@@ -27,11 +29,13 @@ type Config struct {
 	GeminiAPIEndpoint string
 }
 
+// ChatMessage 定义对话消息结构。
 type ChatMessage struct {
 	Role    string
 	Content string
 }
 
+// ChatRequest 定义对话请求参数。
 type ChatRequest struct {
 	System      string
 	Messages    []ChatMessage
@@ -39,14 +43,17 @@ type ChatRequest struct {
 	MaxTokens   int
 }
 
+// ChatResponse 定义对话响应结果。
 type ChatResponse struct {
 	Content string
 }
 
+// IClient 定义客户端能力接口。
 type IClient interface {
 	Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error)
 }
 
+// NewClient 创建客户端。
 func NewClient(cfg *Config) (IClient, error) {
 	if cfg == nil || cfg.Provider == "" {
 		return nil, errorx.New(errorx.InvalidInput, "llm.Config 不能为空且 provider 必须设置")

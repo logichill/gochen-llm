@@ -14,6 +14,7 @@ import (
 	"gochen/errorx"
 )
 
+// IPromptService 定义提示词服务能力接口。
 type IPromptService interface {
 	GetPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
 	GetPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error)
@@ -36,18 +37,22 @@ type promptServiceImpl struct {
 	abTests   repo.IABTestRepository
 }
 
+// NewPromptService 创建提示词服务。
 func NewPromptService(templates repo.IPromptTemplateRepository, versions repo.IPromptVersionRepository, abTests repo.IABTestRepository) IPromptService {
 	return &promptServiceImpl{templates: templates, versions: versions, abTests: abTests}
 }
 
+// GetPrompt 返回提示词。
 func (s *promptServiceImpl) GetPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
 	return s.templates.FindEffective(ctx, name, scope, scopeID)
 }
 
+// GetPromptByID 返回提示词按ID。
 func (s *promptServiceImpl) GetPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 	return s.templates.Get(ctx, id)
 }
 
+// RenderPrompt 渲染提示词。
 func (s *promptServiceImpl) RenderPrompt(ctx context.Context, tmpl *entity.PromptTemplate, vars map[string]any) (string, error) {
 	if tmpl == nil {
 		return "", errorx.New(errorx.InvalidInput, "模板不能为空")
@@ -66,6 +71,7 @@ func (s *promptServiceImpl) RenderPrompt(ctx context.Context, tmpl *entity.Promp
 	return buf.String(), nil
 }
 
+// ComposePrompts 组合提示词列表。
 func (s *promptServiceImpl) ComposePrompts(ctx context.Context, names []string, scope entity.PromptScope, scopeID int64, vars map[string]any) (string, error) {
 	var buf bytes.Buffer
 	for idx, name := range names {
@@ -88,6 +94,7 @@ func (s *promptServiceImpl) ComposePrompts(ctx context.Context, names []string, 
 	return buf.String(), nil
 }
 
+// SavePrompt 保存提示词。
 func (s *promptServiceImpl) SavePrompt(ctx context.Context, tmpl *entity.PromptTemplate) error {
 	if tmpl == nil {
 		return errorx.New(errorx.InvalidInput, "提示词模板不能为空")
@@ -120,10 +127,12 @@ func (s *promptServiceImpl) SavePrompt(ctx context.Context, tmpl *entity.PromptT
 	return s.versions.Save(ctx, version)
 }
 
+// ListPrompts 列出提示词列表。
 func (s *promptServiceImpl) ListPrompts(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
 	return s.listFilteredPrompts(ctx, filter)
 }
 
+// listFilteredPrompts 列出Filtered提示词列表。
 func (s *promptServiceImpl) listFilteredPrompts(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
 	total, err := s.templates.Count(ctx)
 	if err != nil {
@@ -162,6 +171,7 @@ func (s *promptServiceImpl) listFilteredPrompts(ctx context.Context, filter repo
 	return filtered, nil
 }
 
+// CreateVersion 创建版本。
 func (s *promptServiceImpl) CreateVersion(ctx context.Context, templateID int64, changeLog string) (*entity.PromptVersion, error) {
 	if templateID <= 0 {
 		return nil, errorx.New(errorx.InvalidInput, "templateID 无效")
@@ -197,6 +207,7 @@ func (s *promptServiceImpl) CreateVersion(ctx context.Context, templateID int64,
 	return version, nil
 }
 
+// RollbackVersion 回滚版本。
 func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int64, version int) error {
 	if templateID <= 0 || version <= 0 {
 		return errorx.New(errorx.InvalidInput, "templateID 或 version 无效")
@@ -238,6 +249,7 @@ func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int6
 	return s.versions.Save(ctx, rollbackVersion)
 }
 
+// ExportPrompts 导出提示词列表。
 func (s *promptServiceImpl) ExportPrompts(ctx context.Context, filter repo.PromptFilter) ([]byte, error) {
 	list, err := s.ListPrompts(ctx, filter)
 	if err != nil {
@@ -246,6 +258,7 @@ func (s *promptServiceImpl) ExportPrompts(ctx context.Context, filter repo.Promp
 	return json.Marshal(list)
 }
 
+// ImportPrompts 导入提示词列表。
 func (s *promptServiceImpl) ImportPrompts(ctx context.Context, data []byte) error {
 	var list []*entity.PromptTemplate
 	if err := json.Unmarshal(data, &list); err != nil {
@@ -259,6 +272,7 @@ func (s *promptServiceImpl) ImportPrompts(ctx context.Context, data []byte) erro
 	return nil
 }
 
+// StartABTest 启动A/B测试。
 func (s *promptServiceImpl) StartABTest(ctx context.Context, test *entity.ABTest) error {
 	if test == nil {
 		return errorx.New(errorx.InvalidInput, "A/B 测试不能为空")
@@ -288,6 +302,7 @@ func (s *promptServiceImpl) StartABTest(ctx context.Context, test *entity.ABTest
 	return s.abTests.Save(ctx, test)
 }
 
+// GetABTestResult 返回A/B测试结果。
 func (s *promptServiceImpl) GetABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error) {
 	test, err := s.abTests.Get(ctx, testID)
 	if err != nil || test == nil {
@@ -296,7 +311,7 @@ func (s *promptServiceImpl) GetABTestResult(ctx context.Context, testID int64) (
 	return test, nil
 }
 
-// AssignABVariant 基于 TrafficSplit 分配 A/B 变体，并记录简单曝光计数
+// AssignABVariant 分配A/B实验分组。
 func (s *promptServiceImpl) AssignABVariant(ctx context.Context, testID int64, userID int64) (*entity.PromptTemplate, string, error) {
 	if testID <= 0 {
 		return nil, "", errorx.New(errorx.InvalidInput, "ab_test_id 无效")

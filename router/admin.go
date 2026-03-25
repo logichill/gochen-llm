@@ -24,6 +24,7 @@ type LLMAdminRoutes struct {
 	utils      *hbasic.Utils
 }
 
+// NewLLMAdminRoutes 创建LLM管理端路由集合。
 func NewLLMAdminRoutes(manager service.IProviderManager, safety repo.ISafetyPolicyRepo, metrics repo.IMetricsRepo, cfgRepo repo.IProviderConfigRepo, audit repo.IAuditLogRepo, rate repo.IRateLimitRepo, safetySvc service.ISafetyService) *LLMAdminRoutes {
 	return &LLMAdminRoutes{
 		manager:    manager,
@@ -37,6 +38,7 @@ func NewLLMAdminRoutes(manager service.IProviderManager, safety repo.ISafetyPoli
 	}
 }
 
+// RegisterRoutes 注册路由集合。
 func (r *LLMAdminRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 	admin := group.Group("/admin")
 	admin.Use(AdminOnlyMiddleware())
@@ -55,14 +57,17 @@ func (r *LLMAdminRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 	return nil
 }
 
+// GetName 返回名称。
 func (r *LLMAdminRoutes) GetName() string {
 	return "llm_admin"
 }
 
+// GetPriority 返回优先级。
 func (r *LLMAdminRoutes) GetPriority() int {
 	return 305
 }
 
+// getLLMConfig 返回LLM配置。
 func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
@@ -78,6 +83,7 @@ func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IContext) error {
 	})
 }
 
+// updateLLMConfig 更新LLM配置。
 func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
@@ -101,6 +107,7 @@ func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IContext) error {
 	return httpx.WriteSuccessMessage(ctx, 200, "ok", map[string]any{"reload": "applied"})
 }
 
+// updatePricing 更新定价。
 func (r *LLMAdminRoutes) updatePricing(ctx httpx.IContext) error {
 	if r.cfgRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM config repo 未配置")
@@ -128,6 +135,7 @@ func (r *LLMAdminRoutes) updatePricing(ctx httpx.IContext) error {
 	return httpx.WriteSuccessMessage(ctx, 200, "ok", nil)
 }
 
+// reloadLLMConfig 处理reloadLLM配置。
 func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
@@ -140,6 +148,7 @@ func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IContext) error {
 	return httpx.WriteSuccessMessage(ctx, 200, "reloaded", nil)
 }
 
+// getLLMSafetyConfig 返回LLM安全配置。
 func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
@@ -154,6 +163,7 @@ func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IContext) error {
 	})
 }
 
+// updateLLMSafetyConfig 更新LLM安全配置。
 func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
@@ -185,6 +195,7 @@ func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IContext) error {
 	return httpx.WriteSuccessMessage(ctx, 200, "ok", nil)
 }
 
+// getLLMStatus 返回LLM状态。
 func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IContext) error {
 	if r.manager == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
@@ -200,6 +211,7 @@ func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IContext) error {
 	})
 }
 
+// getLLMMetrics 返回LLM指标。
 func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
@@ -282,6 +294,7 @@ func (r *LLMAdminRoutes) markConversion(ctx httpx.IContext) error {
 	return httpx.WriteSuccessMessage(ctx, 200, "ok", nil)
 }
 
+// listAuditLogs 列出审计日志列表。
 func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM audit repo 未配置")
@@ -339,6 +352,7 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	})
 }
 
+// getSecurityOverview 返回安全概览。
 func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
@@ -373,6 +387,7 @@ func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 	})
 }
 
+// validatePricing 校验定价。
 func (r *LLMAdminRoutes) validatePricing(p entity.ProviderPricing) error {
 	if p.ID <= 0 {
 		return errorx.New(errorx.InvalidInput, "pricing id 无效")

@@ -13,6 +13,7 @@ type geminiClient struct {
 	*httpClient
 }
 
+// newGeminiClient 创建Gemini客户端。
 func newGeminiClient(cfg *Config) *geminiClient {
 	return &geminiClient{httpClient: newHTTPClient(cfg)}
 }
@@ -41,6 +42,7 @@ type geminiGenerateResponse struct {
 	} `json:"candidates"`
 }
 
+// Chat 发起对话请求。
 func (c *geminiClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if c.cfg.APIKey == "" {
 		return nil, newClientConfigError("gemini API key 未配置")

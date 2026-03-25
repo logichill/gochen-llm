@@ -12,6 +12,7 @@ type openAIClient struct {
 	*httpClient
 }
 
+// newOpenAIClient 创建OpenAI客户端。
 func newOpenAIClient(cfg *Config) *openAIClient {
 	return &openAIClient{httpClient: newHTTPClient(cfg)}
 }
@@ -34,6 +35,7 @@ type openAIChatResponse struct {
 	} `json:"choices"`
 }
 
+// Chat 发起对话请求。
 func (c *openAIClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if c.cfg.APIKey == "" {
 		return nil, newClientConfigError("OpenAI API Key 未配置")

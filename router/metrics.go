@@ -15,14 +15,18 @@ type MetricsRoutes struct {
 	metrics repo.IMetricsRepo
 }
 
+// NewMetricsRoutes 创建指标路由集合。
 func NewMetricsRoutes(metrics repo.IMetricsRepo) *MetricsRoutes {
 	return &MetricsRoutes{metrics: metrics}
 }
 
+// GetName 返回名称。
 func (r *MetricsRoutes) GetName() string { return "llm_metrics" }
 
+// GetPriority 返回优先级。
 func (r *MetricsRoutes) GetPriority() int { return 310 }
 
+// RegisterRoutes 注册路由集合。
 func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 	api := group.Group("/admin/llm/metrics")
 	api.GET("/agg", r.aggregate)
@@ -31,6 +35,7 @@ func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 	return nil
 }
 
+// aggregate 聚合数据。
 func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
@@ -94,6 +99,7 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	return httpx.WriteSuccess(ctx, map[string]any{"report": report})
 }
 
+// list 列出数据。
 func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
@@ -166,6 +172,7 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	})
 }
 
+// significance 处理significance。
 func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")

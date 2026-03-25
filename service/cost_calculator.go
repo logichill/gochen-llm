@@ -15,6 +15,7 @@ type pricePair struct {
 	Output float64
 }
 
+// NewCostCalculator 创建成本计算器。
 func NewCostCalculator() ICostCalculator {
 	calc := &simpleCostCalculator{
 		unit:               map[string]pricePair{},
@@ -30,6 +31,7 @@ func NewCostCalculator() ICostCalculator {
 	return calc
 }
 
+// EstimateCost 估算成本。
 func (c *simpleCostCalculator) EstimateCost(provider string, model string, requestTokens int, responseTokens int, inputPer1k float64, outputPer1k float64) float64 {
 	if requestTokens < 0 {
 		requestTokens = 0

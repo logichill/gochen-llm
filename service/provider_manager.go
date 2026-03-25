@@ -83,6 +83,7 @@ type providerManagerImpl struct {
 	cancel      context.CancelFunc
 }
 
+// NewProviderManager 创建提供者管理器。
 func NewProviderManager(repo repo.IProviderConfigRepo, logger logging.ILogger) (IProviderManager, error) {
 	m := &providerManagerImpl{
 		repo:      repo,
@@ -93,6 +94,7 @@ func NewProviderManager(repo repo.IProviderConfigRepo, logger logging.ILogger) (
 	return m, nil
 }
 
+// Start 启动提供者管理器。
 func (m *providerManagerImpl) Start(ctx context.Context) error {
 	if m == nil {
 		return nil
@@ -123,6 +125,7 @@ func (m *providerManagerImpl) Start(ctx context.Context) error {
 	return nil
 }
 
+// Stop 停止提供者管理器。
 func (m *providerManagerImpl) Stop(ctx context.Context) error {
 	if m == nil {
 		return nil
@@ -154,6 +157,7 @@ func (m *providerManagerImpl) Stop(ctx context.Context) error {
 	return nil
 }
 
+// ChatForUser 为指定用户发起对话请求。
 func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
 	if ctx == nil {
 		return nil, errorx.New(errorx.InvalidInput, "ctx 不能为空")
@@ -296,6 +300,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 	return nil, errorx.Wrap(firstErr, errorx.Code(firstErr), "所有 LLM 端点调用失败")
 }
 
+// pingEndpoint 探测单个端点的健康状态。
 func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointState) error {
 	if ep == nil || ep.cfg == nil {
 		return errorx.New(errorx.Internal, "端点未初始化")
@@ -397,6 +402,7 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 	return errorx.Wrap(lastErr, errorx.Code(lastErr), "health ping failed")
 }
 
+// shouldRetryNextEndpoint 判断当前错误是否应该切换到下一个端点重试。
 func shouldRetryNextEndpoint(err error) bool {
 	switch errorx.Code(err) {
 	case errorx.InvalidInput, errorx.Validation, errorx.Unauthorized, errorx.Forbidden, errorx.NotFound, errorx.Conflict, errorx.Duplicate, errorx.Unsupported:
@@ -406,6 +412,7 @@ func shouldRetryNextEndpoint(err error) bool {
 	}
 }
 
+// maxInt 返回两个整数中的较大值。
 func maxInt(a, b int) int {
 	if a > b {
 		return a
@@ -470,6 +477,7 @@ func (m *providerManagerImpl) bumpRateWindow(ep *endpointState, now time.Time) {
 	atomic.AddInt64(&ep.rateCount, 1)
 }
 
+// recordHealthSample 记录端点健康检查样本。
 func (m *providerManagerImpl) recordHealthSample(ep *endpointState, sample healthSample) {
 	if ep == nil {
 		return
@@ -486,6 +494,7 @@ func (m *providerManagerImpl) recordHealthSample(ep *endpointState, sample healt
 	}
 }
 
+// errToString 把错误转换为可记录的文本。
 func errToString(err error) string {
 	if err == nil {
 		return ""
@@ -493,6 +502,7 @@ func errToString(err error) string {
 	return err.Error()
 }
 
+// formatTimeUTC 把时间格式化为 UTC 文本。
 func formatTimeUTC(ts int64) string {
 	if ts <= 0 {
 		return ""
@@ -500,7 +510,7 @@ func formatTimeUTC(ts int64) string {
 	return time.Unix(0, ts).UTC().Format(time.RFC3339)
 }
 
-// runHealthCheckOnce 对具备 HealthPingURL 的端点做一次 ping，更新健康状态。
+// runHealthCheckOnce 执行一轮端点健康检查。
 func (m *providerManagerImpl) runHealthCheckOnce(ctx context.Context) {
 	if m == nil {
 		return
@@ -525,6 +535,7 @@ func (m *providerManagerImpl) runHealthCheckOnce(ctx context.Context) {
 	}
 }
 
+// Reload 重新加载配置。
 func (m *providerManagerImpl) Reload(ctx context.Context) error {
 	eps, err := m.loadEndpoints(ctx)
 	if err != nil {
@@ -543,6 +554,7 @@ func (m *providerManagerImpl) Reload(ctx context.Context) error {
 	return nil
 }
 
+// ListEffectiveConfigs 列出当前生效的提供者配置。
 func (m *providerManagerImpl) ListEffectiveConfigs(ctx context.Context) ([]*entity.ProviderConfig, error) {
 	eps, err := m.getOrLoadEndpoints(ctx)
 	if err != nil {
@@ -593,6 +605,7 @@ type EndpointStatus struct {
 	RateRefillPerSec      float64            `json:"rate_refill_per_sec"`
 }
 
+// HealthSampleView 定义健康检查样本视图模型。
 type HealthSampleView struct {
 	At         string `json:"at"`
 	Success    bool   `json:"success"`
@@ -601,6 +614,7 @@ type HealthSampleView struct {
 	Error      string `json:"error,omitempty"`
 }
 
+// ListStatus 列出状态。
 func (m *providerManagerImpl) ListStatus(ctx context.Context) ([]*EndpointStatus, error) {
 	eps, err := m.getOrLoadEndpoints(ctx)
 	if err != nil {
@@ -726,6 +740,7 @@ func (m *providerManagerImpl) ListStatus(ctx context.Context) ([]*EndpointStatus
 	return result, nil
 }
 
+// ReplaceConfigs 用新配置替换当前提供者配置集合。
 func (m *providerManagerImpl) ReplaceConfigs(ctx context.Context, configs []*entity.ProviderConfig) error {
 	for _, cfg := range configs {
 		if cfg.Priority == 0 {
@@ -756,6 +771,7 @@ func (m *providerManagerImpl) ReplaceConfigs(ctx context.Context, configs []*ent
 	return nil
 }
 
+// getOrLoadEndpoints 返回已加载的端点列表，必要时从仓储重新加载。
 func (m *providerManagerImpl) getOrLoadEndpoints(ctx context.Context) ([]*endpointState, error) {
 	if v := m.endpoints.Load(); v != nil {
 		if eps, ok := v.([]*endpointState); ok {
@@ -773,6 +789,7 @@ func (m *providerManagerImpl) getOrLoadEndpoints(ctx context.Context) ([]*endpoi
 	return eps, nil
 }
 
+// loadEndpoints 从仓储加载端点配置并构造运行时状态。
 func (m *providerManagerImpl) loadEndpoints(ctx context.Context) ([]*endpointState, error) {
 	var cfgs []*entity.ProviderConfig
 	var err error

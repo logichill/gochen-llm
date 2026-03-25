@@ -57,6 +57,7 @@ type ProviderConfig struct {
 	UpdatedAt time.Time `gorm:"autoUpdateTime"` // 更新时间
 }
 
+// TableName 返回数据表名。
 func (ProviderConfig) TableName() string {
 	return "llm_provider_configs"
 }

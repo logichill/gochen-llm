@@ -23,6 +23,7 @@ type metricsRepoImpl struct {
 	model ormModel
 }
 
+// NewMetricsRepo 创建指标仓储。
 func NewMetricsRepo(o orm.IOrm) IMetricsRepo {
 	return &metricsRepoImpl{
 		orm:   o,
@@ -30,6 +31,7 @@ func NewMetricsRepo(o orm.IOrm) IMetricsRepo {
 	}
 }
 
+// Save 保存数据。
 func (r *metricsRepoImpl) Save(ctx context.Context, m *entity.Metrics) error {
 	if m == nil {
 		return errorx.New(errorx.InvalidInput, "metrics 不能为空")
@@ -44,6 +46,7 @@ func (r *metricsRepoImpl) Save(ctx context.Context, m *entity.Metrics) error {
 	return nil
 }
 
+// Aggregate 聚合数据。
 func (r *metricsRepoImpl) Aggregate(ctx context.Context, filter entity.MetricsFilter) (*entity.MetricsReport, error) {
 	report := &entity.MetricsReport{}
 
@@ -77,6 +80,7 @@ func (r *metricsRepoImpl) Aggregate(ctx context.Context, filter entity.MetricsFi
 	return report, nil
 }
 
+// AggregateByVariant 按实验分组聚合统计。
 func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.MetricsFilter) ([]*entity.VariantMetricsReport, error) {
 	if filter.ABTestID == nil {
 		return nil, errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
@@ -126,6 +130,7 @@ func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.
 	return result, nil
 }
 
+// Significance 计算显著性指标。
 func (r *metricsRepoImpl) Significance(ctx context.Context, filter entity.MetricsFilter) (*entity.ABSignificanceReport, error) {
 	if filter.ABTestID == nil {
 		return nil, errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
@@ -193,6 +198,7 @@ func (r *metricsRepoImpl) Significance(ctx context.Context, filter entity.Metric
 	return report, nil
 }
 
+// queryVariantCount 处理查询实验分组Count。
 func (r *metricsRepoImpl) queryVariantCount(ctx context.Context, filter entity.MetricsFilter) (map[string]int64, error) {
 	type row struct {
 		Variant string
@@ -226,6 +232,7 @@ func (r *metricsRepoImpl) queryVariantCount(ctx context.Context, filter entity.M
 	return result, nil
 }
 
+// calcPValue 计算P值。
 func calcPValue(aConv, aTotal, bConv, bTotal int64) float64 {
 	if aTotal == 0 || bTotal == 0 {
 		return 1
@@ -250,6 +257,7 @@ func calcPValue(aConv, aTotal, bConv, bTotal int64) float64 {
 	return p
 }
 
+// buildVariantReport 构造实验分组报告。
 func buildVariantReport(variant string, total, conv int64) *entity.VariantMetricsReport {
 	report := &entity.VariantMetricsReport{
 		Variant: variant,
@@ -264,6 +272,7 @@ func buildVariantReport(variant string, total, conv int64) *entity.VariantMetric
 	return report
 }
 
+// maxFloat 返回两个浮点数中的较大值。
 func maxFloat(a, b float64) float64 {
 	if a > b {
 		return a
@@ -271,6 +280,7 @@ func maxFloat(a, b float64) float64 {
 	return b
 }
 
+// List 列出数据。
 func (r *metricsRepoImpl) List(ctx context.Context, filter entity.MetricsFilter, limit, offset int) ([]*entity.Metrics, int64, error) {
 	opts := buildMetricsOptions(filter)
 	model, err := r.model.model(r.orm)
@@ -303,6 +313,7 @@ func (r *metricsRepoImpl) List(ctx context.Context, filter entity.MetricsFilter,
 	return list, total, nil
 }
 
+// buildMetricsOptions 构造指标选项。
 func buildMetricsOptions(filter entity.MetricsFilter) []orm.QueryOption {
 	opts := []orm.QueryOption{}
 	if filter.Provider != "" {

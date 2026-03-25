@@ -24,6 +24,7 @@ type conversationRepoImpl struct {
 	messageModel      ormModel
 }
 
+// NewConversationRepo 创建会话仓储。
 func NewConversationRepo(o orm.IOrm) IConversationRepo {
 	return &conversationRepoImpl{
 		orm:               o,
@@ -32,6 +33,7 @@ func NewConversationRepo(o orm.IOrm) IConversationRepo {
 	}
 }
 
+// CreateConversation 创建会话。
 func (r *conversationRepoImpl) CreateConversation(ctx context.Context, conv *entity.Conversation) error {
 	model, err := r.conversationModel.model(r.orm)
 	if err != nil {
@@ -43,6 +45,7 @@ func (r *conversationRepoImpl) CreateConversation(ctx context.Context, conv *ent
 	return nil
 }
 
+// GetConversation 返回会话。
 func (r *conversationRepoImpl) GetConversation(ctx context.Context, id int64) (*entity.Conversation, error) {
 	var conv entity.Conversation
 	model, err := r.conversationModel.model(r.orm)
@@ -59,6 +62,7 @@ func (r *conversationRepoImpl) GetConversation(ctx context.Context, id int64) (*
 	return &conv, nil
 }
 
+// UpdateConversation 更新会话。
 func (r *conversationRepoImpl) UpdateConversation(ctx context.Context, conv *entity.Conversation) error {
 	model, err := r.conversationModel.model(r.orm)
 	if err != nil {
@@ -70,6 +74,7 @@ func (r *conversationRepoImpl) UpdateConversation(ctx context.Context, conv *ent
 	return nil
 }
 
+// AddMessage 添加消息。
 func (r *conversationRepoImpl) AddMessage(ctx context.Context, msg *entity.Message) error {
 	model, err := r.messageModel.model(r.orm)
 	if err != nil {
@@ -81,6 +86,7 @@ func (r *conversationRepoImpl) AddMessage(ctx context.Context, msg *entity.Messa
 	return nil
 }
 
+// GetMessages 返回消息集合。
 func (r *conversationRepoImpl) GetMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
 	if limit <= 0 {
 		limit = 50
@@ -100,6 +106,7 @@ func (r *conversationRepoImpl) GetMessages(ctx context.Context, conversationID i
 	return messages, nil
 }
 
+// TrimMessages 裁剪消息集合。
 func (r *conversationRepoImpl) TrimMessages(ctx context.Context, conversationID int64, keepLast int) error {
 	if keepLast <= 0 {
 		keepLast = 100

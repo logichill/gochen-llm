@@ -11,6 +11,7 @@ import (
 	"gochen/server"
 )
 
+// NewModule 创建模块。
 func NewModule() (server.IModule, error) {
 	var container server.IModuleContainer
 	return server.BuildModule(server.ModuleConfig{
