@@ -10,7 +10,7 @@
 
 ## 管理接口契约
 
-`gochen-llm/router` 对外暴露的管理/指标接口统一使用 gochen `httpx` success envelope：
+`gochen-llm/router` 对外暴露的管理/指标接口统一使用 gochen `httpx` `ResponseMessage`：
 
 - 顶层固定为 `{ code, message, data }`；不再返回裸对象。
 - `GET /admin/llm/config`：`data.configs` 为当前生效的 provider 配置列表。

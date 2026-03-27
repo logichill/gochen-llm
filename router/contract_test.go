@@ -109,16 +109,16 @@ func (r *stubMetricsRepo) Significance(ctx context.Context, filter entity.Metric
 	return &entity.ABSignificanceReport{ABTestID: 1}, nil
 }
 
-func TestLLMAdminRoutesGetLLMConfig_UsesSuccessEnvelope(t *testing.T) {
+func TestLLMAdminRoutesGetLLMConfig_UsesResponseMessage(t *testing.T) {
 	routes := NewLLMAdminRoutes(&stubProviderManager{configs: []*entity.ProviderConfig{{Provider: "openai", Model: "gpt-4o-mini"}}}, nil, nil, nil, nil, nil, nil)
 	ctx := newRouterTestContext(http.MethodGet, "/admin/llm/config")
 
 	if err := routes.getLLMConfig(ctx); err != nil {
 		t.Fatalf("getLLMConfig returned error: %v", err)
 	}
-	payload, ok := ctx.jsonObj.(*httpx.SuccessPayload)
+	payload, ok := ctx.jsonObj.(*httpx.ResponseMessage)
 	if !ok {
-		t.Fatalf("expected SuccessPayload, got %T", ctx.jsonObj)
+		t.Fatalf("expected ResponseMessage, got %T", ctx.jsonObj)
 	}
 	data, ok := payload.Data.(map[string]any)
 	if !ok {
@@ -137,9 +137,9 @@ func TestLLMAdminRoutesReloadLLMConfig_UsesTopLevelMessage(t *testing.T) {
 	if err := routes.reloadLLMConfig(ctx); err != nil {
 		t.Fatalf("reloadLLMConfig returned error: %v", err)
 	}
-	payload, ok := ctx.jsonObj.(*httpx.SuccessPayload)
+	payload, ok := ctx.jsonObj.(*httpx.ResponseMessage)
 	if !ok {
-		t.Fatalf("expected SuccessPayload, got %T", ctx.jsonObj)
+		t.Fatalf("expected ResponseMessage, got %T", ctx.jsonObj)
 	}
 	if payload.Message != "reloaded" {
 		t.Fatalf("expected top-level message 'reloaded', got %#v", payload)
@@ -149,16 +149,16 @@ func TestLLMAdminRoutesReloadLLMConfig_UsesTopLevelMessage(t *testing.T) {
 	}
 }
 
-func TestMetricsRoutesList_UsesPaginatedSuccessEnvelope(t *testing.T) {
+func TestMetricsRoutesList_UsesPaginatedResponseMessage(t *testing.T) {
 	routes := NewMetricsRoutes(&stubMetricsRepo{list: []*entity.Metrics{{Provider: "openai", Model: "gpt-4o-mini", CreatedAt: time.Now()}}, total: 1})
 	ctx := newRouterTestContext(http.MethodGet, "/admin/llm/metrics/list?limit=25&offset=5")
 
 	if err := routes.list(ctx); err != nil {
 		t.Fatalf("metrics list returned error: %v", err)
 	}
-	payload, ok := ctx.jsonObj.(*httpx.SuccessPayload)
+	payload, ok := ctx.jsonObj.(*httpx.ResponseMessage)
 	if !ok {
-		t.Fatalf("expected SuccessPayload, got %T", ctx.jsonObj)
+		t.Fatalf("expected ResponseMessage, got %T", ctx.jsonObj)
 	}
 	data, ok := payload.Data.(map[string]any)
 	if !ok {
