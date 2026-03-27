@@ -6,6 +6,7 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/router"
 	"gochen-llm/service"
+	"gochen/di"
 	"gochen/errorx"
 	"gochen/httpx"
 	"gochen/server"
@@ -48,17 +49,17 @@ func NewModule() (server.IModule, error) {
 			if container == nil {
 				return errorx.New(errorx.Internal, "container is nil")
 			}
-			return container.Invoke(func(pm service.IProviderManager) error {
+			return container.Invoke(di.NewInvocation(func(pm service.IProviderManager) error {
 				return pm.Start(ctx)
-			})
+			}))
 		},
 		OnStop: func(ctx context.Context) error {
 			if container == nil {
 				return nil
 			}
-			return container.Invoke(func(pm service.IProviderManager) error {
+			return container.Invoke(di.NewInvocation(func(pm service.IProviderManager) error {
 				return pm.Stop(ctx)
-			})
+			}))
 		},
 		// LLM 模块的路由主要是管理端/监控端点；鉴权由上层应用按需挂载。
 		Middlewares: []httpx.Middleware{},

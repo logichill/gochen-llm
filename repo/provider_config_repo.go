@@ -112,8 +112,8 @@ func (r *providerConfigRepoImpl) UpdatePricing(ctx context.Context, updates []en
 		}
 
 		updateValues := map[string]any{
-			"input_price_per1k":  up.InputPricePer1k,
-			"output_price_per1k": up.OutputPricePer1k,
+			"input_price_per_1k":  up.InputPricePer1k,
+			"output_price_per_1k": up.OutputPricePer1k,
 		}
 		if err := model.UpdateValues(ctx, updateValues, orm.WithWhere("id = ?", up.ID)); err != nil {
 			return errorx.Wrap(err, errorx.Database, "更新 LLM 单价失败")

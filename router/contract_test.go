@@ -67,7 +67,6 @@ func (c *routerTestContext) IsAborted() bool                   { return false }
 func (c *routerTestContext) GetContext() httpx.IRequestContext { return nil }
 func (c *routerTestContext) SetContext(ctx httpx.IRequestContext) {
 }
-func (c *routerTestContext) GetRaw() any { return nil }
 
 type stubProviderManager struct {
 	configs []*entity.ProviderConfig

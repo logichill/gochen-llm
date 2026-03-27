@@ -40,8 +40,8 @@ type ProviderConfig struct {
 	GeminiAPIEndpoint string `gorm:"size:200"` // Gemini 特定 API 端点
 
 	// 单价（USD 每 1000 tokens），可选，未设置则使用全局默认或成本表兜底
-	InputPricePer1k  float64 `gorm:"type:decimal(10,6)"` // 输入端价格（每 1k tokens）
-	OutputPricePer1k float64 `gorm:"type:decimal(10,6)"` // 输出端价格（每 1k tokens）
+	InputPricePer1k  float64 `gorm:"column:input_price_per_1k;type:decimal(10,6)"`  // 输入端价格（每 1k tokens）
+	OutputPricePer1k float64 `gorm:"column:output_price_per_1k;type:decimal(10,6)"` // 输出端价格（每 1k tokens）
 
 	// 健康探测与熔断配置
 	HealthPingURL        string `gorm:"size:200"`           // 健康检查 URL（为空则跳过 ping）
