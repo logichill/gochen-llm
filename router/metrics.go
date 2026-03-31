@@ -6,9 +6,25 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
+	api "gochen/api/http"
+	dataquery "gochen/db/query"
 	"gochen/errorx"
 	"gochen/httpx"
 )
+
+type llmMetricsQueryFields struct {
+	Provider  string    `query:"type=enum,ops=eq"`
+	Model     string    `query:"type=enum,ops=eq"`
+	Status    string    `query:"type=enum,ops=eq"`
+	ABVariant string    `query:"type=enum,ops=eq"`
+	Outcome   string    `query:"type=enum,ops=eq"`
+	ABTestID  int64     `query:"ops=eq"`
+	UserID    int64     `query:"ops=eq"`
+	CreatedAt time.Time `query:"ops=gte|lte"`
+}
+
+var llmMetricsQuerySchema = dataquery.MustInferQuerySchema[llmMetricsQueryFields](nil)
+var llmMetricsQueryConfig = api.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
 
 // MetricsRoutes 提供指标看板接口（时间窗口聚合与原始日志分页）
 type MetricsRoutes struct {
@@ -41,49 +57,14 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
 
-	var filter entity.MetricsFilter
-	q := ctx.GetRequest().URL.Query()
-	if v := q.Get("provider"); v != "" {
-		filter.Provider = v
+	params, err := parseMetricsQueryParams(ctx)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
 	}
-	if v := q.Get("model"); v != "" {
-		filter.Model = v
-	}
-	if v := q.Get("status"); v != "" {
-		filter.Status = v
-	}
-	if v := q.Get("ab_variant"); v != "" {
-		filter.ABVariant = v
-	}
-	if v := q.Get("outcome"); v != "" {
-		filter.Outcome = v
-	}
-	if v := q.Get("conversion_type"); v != "" {
-		filter.Outcome = v
-	}
-	if v := q.Get("ab_test_id"); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			filter.ABTestID = &id
-		}
-	}
-	if v := q.Get("user_id"); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			filter.UserID = &id
-		}
-	}
-	// 时间窗口，可选 start/end
-	if v := q.Get("start"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.StartAt = &t
-		}
-	}
-	if v := q.Get("end"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.EndAt = &t
-		}
-	}
+	filter := decodeMetricsFilter(params.DecodedFilters)
+	applyLegacyMetricsFilter(ctx, &filter)
 
-	group := q.Get("group_by")
+	group := ctx.GetRequest().URL.Query().Get("group_by")
 	if group == "variant" && filter.ABTestID != nil {
 		rows, err := r.metrics.AggregateByVariant(ctx.GetContext(), filter)
 		if err != nil {
@@ -105,59 +86,13 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
 
-	var filter entity.MetricsFilter
-	q := ctx.GetRequest().URL.Query()
-	if v := q.Get("provider"); v != "" {
-		filter.Provider = v
+	opts, err := parseMetricsPaginationOptions(ctx)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
 	}
-	if v := q.Get("model"); v != "" {
-		filter.Model = v
-	}
-	if v := q.Get("status"); v != "" {
-		filter.Status = v
-	}
-	if v := q.Get("ab_variant"); v != "" {
-		filter.ABVariant = v
-	}
-	if v := q.Get("outcome"); v != "" {
-		filter.Outcome = v
-	}
-	if v := q.Get("conversion_type"); v != "" {
-		filter.Outcome = v
-	}
-	if v := q.Get("ab_test_id"); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			filter.ABTestID = &id
-		}
-	}
-	if v := q.Get("user_id"); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			filter.UserID = &id
-		}
-	}
-	if v := q.Get("start"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.StartAt = &t
-		}
-	}
-	if v := q.Get("end"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.EndAt = &t
-		}
-	}
-
-	limit := 50
-	if v := q.Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 500 {
-			limit = n
-		}
-	}
-	offset := 0
-	if v := q.Get("offset"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			offset = n
-		}
-	}
+	filter := decodeMetricsFilter(opts.DecodedFilters)
+	applyLegacyMetricsFilter(ctx, &filter)
+	limit, offset := resolveLimitOffset(ctx, opts, 50, 500)
 
 	list, total, err := r.metrics.List(ctx.GetContext(), filter, limit, offset)
 	if err != nil {
@@ -172,50 +107,165 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	})
 }
 
-// significance 处理significance。
+// significance 处理 significance。
 func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
 
-	var filter entity.MetricsFilter
-	q := ctx.GetRequest().URL.Query()
-	if v := q.Get("provider"); v != "" {
-		filter.Provider = v
+	params, err := parseMetricsQueryParams(ctx)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
 	}
-	if v := q.Get("model"); v != "" {
-		filter.Model = v
-	}
-	if v := q.Get("outcome"); v != "" {
-		filter.Outcome = v
-	}
-	if v := q.Get("conversion_type"); v != "" {
-		filter.Outcome = v
-	}
-	if v := q.Get("ab_test_id"); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			filter.ABTestID = &id
-		}
-	}
-	if filter.ABTestID == nil {
-		return httpx.WriteErrorCode(ctx, errorx.InvalidInput, "ab_test_id 不能为空")
-	}
-	if v := q.Get("start"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.StartAt = &t
-		}
-	}
-	if v := q.Get("end"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.EndAt = &t
-		}
+	filter := decodeMetricsFilter(params.DecodedFilters)
+	applyLegacyMetricsFilter(ctx, &filter)
+	if err := requireABTestID(filter); err != nil {
+		return httpx.WriteError(ctx, err)
 	}
 
 	report, err := r.metrics.Significance(ctx.GetContext(), filter)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	return httpx.WriteSuccess(ctx, map[string]any{
-		"report": report,
-	})
+	return httpx.WriteSuccess(ctx, map[string]any{"report": report})
+}
+
+func parseMetricsQueryParams(ctx httpx.IContext) (*dataquery.QueryParams, error) {
+	return api.ParseQueryParams(ctx, llmMetricsQueryConfig)
+}
+
+func parseMetricsPaginationOptions(ctx httpx.IContext) (*dataquery.PaginationOptions, error) {
+	return api.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
+}
+
+func decodeMetricsFilter(decoded []dataquery.DecodedFilter) entity.MetricsFilter {
+	var filter entity.MetricsFilter
+	for _, item := range decoded {
+		switch item.Field.Name {
+		case "provider":
+			filter.Provider = item.Value.String
+		case "model":
+			filter.Model = item.Value.String
+		case "status":
+			filter.Status = item.Value.String
+		case "ab_variant":
+			filter.ABVariant = item.Value.String
+		case "outcome":
+			filter.Outcome = item.Value.String
+		case "ab_test_id":
+			value := item.Value.Int
+			filter.ABTestID = &value
+		case "user_id":
+			value := item.Value.Int
+			filter.UserID = &value
+		case "created_at":
+			value := item.Value.Time
+			if item.Op == dataquery.FilterOpGte {
+				filter.StartAt = &value
+			}
+			if item.Op == dataquery.FilterOpLte {
+				filter.EndAt = &value
+			}
+		}
+	}
+	return filter
+}
+
+func applyLegacyMetricsFilter(ctx httpx.IContext, filter *entity.MetricsFilter) {
+	if filter == nil {
+		return
+	}
+	q := ctx.GetRequest().URL.Query()
+	if filter.Provider == "" {
+		filter.Provider = q.Get("provider")
+	}
+	if filter.Model == "" {
+		filter.Model = q.Get("model")
+	}
+	if filter.Status == "" {
+		filter.Status = q.Get("status")
+	}
+	if filter.ABVariant == "" {
+		filter.ABVariant = q.Get("ab_variant")
+	}
+	if filter.Outcome == "" {
+		filter.Outcome = q.Get("outcome")
+		if filter.Outcome == "" {
+			filter.Outcome = q.Get("conversion_type")
+		}
+	}
+	if filter.ABTestID == nil {
+		if value, ok := parseInt64Query(q.Get("ab_test_id")); ok {
+			filter.ABTestID = &value
+		}
+	}
+	if filter.UserID == nil {
+		if value, ok := parseInt64Query(q.Get("user_id")); ok {
+			filter.UserID = &value
+		}
+	}
+	if filter.StartAt == nil {
+		if value, ok := parseRFC3339Query(q.Get("start")); ok {
+			filter.StartAt = &value
+		}
+	}
+	if filter.EndAt == nil {
+		if value, ok := parseRFC3339Query(q.Get("end")); ok {
+			filter.EndAt = &value
+		}
+	}
+}
+
+func requireABTestID(filter entity.MetricsFilter) error {
+	if filter.ABTestID != nil {
+		return nil
+	}
+	return errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
+}
+
+func resolveLimitOffset(ctx httpx.IContext, opts *dataquery.PaginationOptions, defaultLimit, maxLimit int) (int, int) {
+	if ctx.GetQuery("page") != "" || ctx.GetQuery("size") != "" {
+		limit := defaultLimit
+		offset := 0
+		if opts != nil {
+			limit = opts.Size
+			offset = (opts.Page - 1) * opts.Size
+		}
+		return limit, offset
+	}
+	q := ctx.GetRequest().URL.Query()
+	limit := defaultLimit
+	if value, err := strconv.Atoi(q.Get("limit")); err == nil && value > 0 {
+		if maxLimit > 0 && value > maxLimit {
+			value = maxLimit
+		}
+		limit = value
+	}
+	offset := 0
+	if value, err := strconv.Atoi(q.Get("offset")); err == nil && value >= 0 {
+		offset = value
+	}
+	return limit, offset
+}
+
+func parseInt64Query(raw string) (int64, bool) {
+	if raw == "" {
+		return 0, false
+	}
+	value, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return 0, false
+	}
+	return value, true
+}
+
+func parseRFC3339Query(raw string) (time.Time, bool) {
+	if raw == "" {
+		return time.Time{}, false
+	}
+	value, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return value, true
 }

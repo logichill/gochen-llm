@@ -1,16 +1,28 @@
 package router
 
 import (
-	"strconv"
 	"time"
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
+	api "gochen/api/http"
+	dataquery "gochen/db/query"
 	"gochen/errorx"
 	"gochen/httpx"
 	hbasic "gochen/httpx/nethttp"
 )
+
+type llmAuditLogQueryFields struct {
+	UserID       int64     `query:"ops=eq"`
+	Action       string    `query:"type=enum,ops=eq"`
+	Status       string    `query:"type=enum,ops=eq"`
+	ResourceType string    `query:"type=enum,ops=eq"`
+	CreatedAt    time.Time `query:"ops=gte|lte"`
+}
+
+var llmAuditLogQuerySchema = dataquery.MustInferQuerySchema[llmAuditLogQueryFields](nil)
+var llmAuditLogQueryConfig = api.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
 
 // LLMAdminRoutes 提供 LLM 模块的管理接口
 type LLMAdminRoutes struct {
@@ -217,21 +229,12 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
 
-	var filter entity.MetricsFilter
-	if provider := ctx.GetRequest().URL.Query().Get("provider"); provider != "" {
-		filter.Provider = provider
+	params, err := parseMetricsQueryParams(ctx)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
 	}
-	if model := ctx.GetRequest().URL.Query().Get("model"); model != "" {
-		filter.Model = model
-	}
-	if abTest := ctx.GetRequest().URL.Query().Get("ab_test_id"); abTest != "" {
-		if v, err := strconv.ParseInt(abTest, 10, 64); err == nil {
-			filter.ABTestID = &v
-		}
-	}
-	if variant := ctx.GetRequest().URL.Query().Get("ab_variant"); variant != "" {
-		filter.ABVariant = variant
-	}
+	filter := decodeMetricsFilter(params.DecodedFilters)
+	applyLegacyMetricsFilter(ctx, &filter)
 
 	group := ctx.GetRequest().URL.Query().Get("group_by")
 	if group == "variant" && filter.ABTestID != nil {
@@ -251,6 +254,67 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	return httpx.WriteSuccess(ctx, map[string]any{
 		"report": report,
 	})
+}
+
+func parseAuditLogPaginationOptions(ctx httpx.IContext) (*dataquery.PaginationOptions, error) {
+	return api.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
+}
+
+func decodeAuditLogFilter(decoded []dataquery.DecodedFilter) repo.AuditLogFilter {
+	var filter repo.AuditLogFilter
+	for _, item := range decoded {
+		switch item.Field.Name {
+		case "user_id":
+			value := item.Value.Int
+			filter.UserID = &value
+		case "action":
+			filter.Action = item.Value.String
+		case "status":
+			filter.Status = item.Value.String
+		case "resource_type":
+			filter.ResourceType = item.Value.String
+		case "created_at":
+			value := item.Value.Time
+			if item.Op == dataquery.FilterOpGte {
+				filter.StartAt = &value
+			}
+			if item.Op == dataquery.FilterOpLte {
+				filter.EndAt = &value
+			}
+		}
+	}
+	return filter
+}
+
+func applyLegacyAuditLogFilter(ctx httpx.IContext, filter *repo.AuditLogFilter) {
+	if filter == nil {
+		return
+	}
+	q := ctx.GetRequest().URL.Query()
+	if filter.UserID == nil {
+		if value, ok := parseInt64Query(q.Get("user_id")); ok {
+			filter.UserID = &value
+		}
+	}
+	if filter.Action == "" {
+		filter.Action = q.Get("action")
+	}
+	if filter.Status == "" {
+		filter.Status = q.Get("status")
+	}
+	if filter.ResourceType == "" {
+		filter.ResourceType = q.Get("resource_type")
+	}
+	if filter.StartAt == nil {
+		if value, ok := parseRFC3339Query(q.Get("start")); ok {
+			filter.StartAt = &value
+		}
+	}
+	if filter.EndAt == nil {
+		if value, ok := parseRFC3339Query(q.Get("end")); ok {
+			filter.EndAt = &value
+		}
+	}
 }
 
 // markConversion 记录一次转化事件（例如 A/B 测试的成功/点击）
@@ -300,45 +364,13 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM audit repo 未配置")
 	}
 
-	var filter repo.AuditLogFilter
-	q := ctx.GetRequest().URL.Query()
-	if v := q.Get("user_id"); v != "" {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			filter.UserID = &id
-		}
+	opts, err := parseAuditLogPaginationOptions(ctx)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
 	}
-	if v := q.Get("action"); v != "" {
-		filter.Action = v
-	}
-	if v := q.Get("status"); v != "" {
-		filter.Status = v
-	}
-	if v := q.Get("resource_type"); v != "" {
-		filter.ResourceType = v
-	}
-	if v := q.Get("start"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.StartAt = &t
-		}
-	}
-	if v := q.Get("end"); v != "" {
-		if t, err := time.Parse(time.RFC3339, v); err == nil {
-			filter.EndAt = &t
-		}
-	}
-
-	limit := 50
-	if v := q.Get("limit"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 && n <= 200 {
-			limit = n
-		}
-	}
-	offset := 0
-	if v := q.Get("offset"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
-			offset = n
-		}
-	}
+	filter := decodeAuditLogFilter(opts.DecodedFilters)
+	applyLegacyAuditLogFilter(ctx, &filter)
+	limit, offset := resolveLimitOffset(ctx, opts, 50, 200)
 
 	list, total, err := r.auditRepo.List(ctx.GetContext(), filter, limit, offset)
 	if err != nil {
