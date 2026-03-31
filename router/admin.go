@@ -6,7 +6,7 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
-	api "gochen/api/http"
+	restapi "gochen/api/restapi"
 	dataquery "gochen/db/query"
 	"gochen/errorx"
 	"gochen/httpx"
@@ -22,7 +22,7 @@ type llmAuditLogQueryFields struct {
 }
 
 var llmAuditLogQuerySchema = dataquery.MustInferQuerySchema[llmAuditLogQueryFields](nil)
-var llmAuditLogQueryConfig = api.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
+var llmAuditLogQueryConfig = restapi.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
 
 // LLMAdminRoutes 提供 LLM 模块的管理接口
 type LLMAdminRoutes struct {
@@ -257,7 +257,7 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 }
 
 func parseAuditLogPaginationOptions(ctx httpx.IContext) (*dataquery.PaginationOptions, error) {
-	return api.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
+	return restapi.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
 }
 
 func decodeAuditLogFilter(decoded []dataquery.DecodedFilter) repo.AuditLogFilter {

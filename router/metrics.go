@@ -6,7 +6,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	api "gochen/api/http"
+	restapi "gochen/api/restapi"
 	dataquery "gochen/db/query"
 	"gochen/errorx"
 	"gochen/httpx"
@@ -24,7 +24,7 @@ type llmMetricsQueryFields struct {
 }
 
 var llmMetricsQuerySchema = dataquery.MustInferQuerySchema[llmMetricsQueryFields](nil)
-var llmMetricsQueryConfig = api.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
+var llmMetricsQueryConfig = restapi.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
 
 // MetricsRoutes 提供指标看板接口（时间窗口聚合与原始日志分页）
 type MetricsRoutes struct {
@@ -44,10 +44,10 @@ func (r *MetricsRoutes) GetPriority() int { return 310 }
 
 // RegisterRoutes 注册路由集合。
 func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
-	api := group.Group("/admin/llm/metrics")
-	api.GET("/agg", r.aggregate)
-	api.GET("/list", r.list)
-	api.GET("/significance", r.significance)
+	metricsGroup := group.Group("/admin/llm/metrics")
+	metricsGroup.GET("/agg", r.aggregate)
+	metricsGroup.GET("/list", r.list)
+	metricsGroup.GET("/significance", r.significance)
 	return nil
 }
 
@@ -131,11 +131,11 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 }
 
 func parseMetricsQueryParams(ctx httpx.IContext) (*dataquery.QueryParams, error) {
-	return api.ParseQueryParams(ctx, llmMetricsQueryConfig)
+	return restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
 }
 
 func parseMetricsPaginationOptions(ctx httpx.IContext) (*dataquery.PaginationOptions, error) {
-	return api.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
+	return restapi.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
 }
 
 func decodeMetricsFilter(decoded []dataquery.DecodedFilter) entity.MetricsFilter {
