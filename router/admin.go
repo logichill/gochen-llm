@@ -228,13 +228,17 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
+	if err := rejectLegacyQueryParams(ctx,
+		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
+	); err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 
 	params, err := parseMetricsQueryParams(ctx)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.DecodedFilters)
-	applyLegacyMetricsFilter(ctx, &filter)
+	filter := decodeMetricsFilter(params.CriteriaView().Filters)
 
 	group := ctx.GetRequest().URL.Query().Get("group_by")
 	if group == "variant" && filter.ABTestID != nil {
@@ -286,41 +290,13 @@ func decodeAuditLogFilter(decoded []dataquery.DecodedFilter) repo.AuditLogFilter
 	return filter
 }
 
-func applyLegacyAuditLogFilter(ctx httpx.IContext, filter *repo.AuditLogFilter) {
-	if filter == nil {
-		return
-	}
-	q := ctx.GetRequest().URL.Query()
-	if filter.UserID == nil {
-		if value, ok := parseInt64Query(q.Get("user_id")); ok {
-			filter.UserID = &value
-		}
-	}
-	if filter.Action == "" {
-		filter.Action = q.Get("action")
-	}
-	if filter.Status == "" {
-		filter.Status = q.Get("status")
-	}
-	if filter.ResourceType == "" {
-		filter.ResourceType = q.Get("resource_type")
-	}
-	if filter.StartAt == nil {
-		if value, ok := parseRFC3339Query(q.Get("start")); ok {
-			filter.StartAt = &value
-		}
-	}
-	if filter.EndAt == nil {
-		if value, ok := parseRFC3339Query(q.Get("end")); ok {
-			filter.EndAt = &value
-		}
-	}
-}
-
 // markConversion 记录一次转化事件（例如 A/B 测试的成功/点击）
 func (r *LLMAdminRoutes) markConversion(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
+	}
+	if err := rejectLegacyJSONFields(ctx, "conversion_type"); err != nil {
+		return httpx.WriteError(ctx, err)
 	}
 	var body struct {
 		UserID           int64  `json:"user_id"`
@@ -330,13 +306,9 @@ func (r *LLMAdminRoutes) markConversion(ctx httpx.IContext) error {
 		Provider         string `json:"provider"`
 		Model            string `json:"model"`
 		Outcome          string `json:"outcome"`
-		ConversionType   string `json:"conversion_type"`
 	}
 	if err := ctx.BindJSON(&body); err != nil {
 		return httpx.WriteError(ctx, err)
-	}
-	if body.Outcome == "" {
-		body.Outcome = body.ConversionType
 	}
 	if body.Outcome == "" {
 		body.Outcome = "conversion"
@@ -363,14 +335,18 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM audit repo 未配置")
 	}
+	if err := rejectLegacyQueryParams(ctx,
+		"user_id", "action", "status", "resource_type", "start", "end", "limit", "offset",
+	); err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 
 	opts, err := parseAuditLogPaginationOptions(ctx)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeAuditLogFilter(opts.DecodedFilters)
-	applyLegacyAuditLogFilter(ctx, &filter)
-	limit, offset := resolveLimitOffset(ctx, opts, 50, 200)
+	filter := decodeAuditLogFilter(opts.CriteriaView().Filters)
+	limit, offset := resolvePageBounds(opts, 50)
 
 	list, total, err := r.auditRepo.List(ctx.GetContext(), filter, limit, offset)
 	if err != nil {

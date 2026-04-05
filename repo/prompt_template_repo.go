@@ -52,7 +52,7 @@ func NewPromptTemplateRepo(o orm.IOrm) (IPromptTemplateRepository, error) {
 	}, nil
 }
 
-// Get 兼容通用仓储语义，未命中时返回 nil。
+// Get 遵循通用仓储语义，未命中时返回 nil。
 func (r *promptTemplateRepoImpl) Get(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 	tmpl, err := r.Repo.Get(ctx, id)
 	if err != nil {

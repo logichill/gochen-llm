@@ -1,7 +1,6 @@
 package router
 
 import (
-	"strconv"
 	"time"
 
 	"gochen-llm/entity"
@@ -56,13 +55,17 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
+	if err := rejectLegacyQueryParams(ctx,
+		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
+	); err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 
 	params, err := parseMetricsQueryParams(ctx)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.DecodedFilters)
-	applyLegacyMetricsFilter(ctx, &filter)
+	filter := decodeMetricsFilter(params.CriteriaView().Filters)
 
 	group := ctx.GetRequest().URL.Query().Get("group_by")
 	if group == "variant" && filter.ABTestID != nil {
@@ -85,14 +88,18 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
+	if err := rejectLegacyQueryParams(ctx,
+		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end", "limit", "offset",
+	); err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 
 	opts, err := parseMetricsPaginationOptions(ctx)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(opts.DecodedFilters)
-	applyLegacyMetricsFilter(ctx, &filter)
-	limit, offset := resolveLimitOffset(ctx, opts, 50, 500)
+	filter := decodeMetricsFilter(opts.CriteriaView().Filters)
+	limit, offset := resolvePageBounds(opts, 50)
 
 	list, total, err := r.metrics.List(ctx.GetContext(), filter, limit, offset)
 	if err != nil {
@@ -112,13 +119,17 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
+	if err := rejectLegacyQueryParams(ctx,
+		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
+	); err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 
 	params, err := parseMetricsQueryParams(ctx)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.DecodedFilters)
-	applyLegacyMetricsFilter(ctx, &filter)
+	filter := decodeMetricsFilter(params.CriteriaView().Filters)
 	if err := requireABTestID(filter); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -171,51 +182,6 @@ func decodeMetricsFilter(decoded []dataquery.DecodedFilter) entity.MetricsFilter
 	return filter
 }
 
-func applyLegacyMetricsFilter(ctx httpx.IContext, filter *entity.MetricsFilter) {
-	if filter == nil {
-		return
-	}
-	q := ctx.GetRequest().URL.Query()
-	if filter.Provider == "" {
-		filter.Provider = q.Get("provider")
-	}
-	if filter.Model == "" {
-		filter.Model = q.Get("model")
-	}
-	if filter.Status == "" {
-		filter.Status = q.Get("status")
-	}
-	if filter.ABVariant == "" {
-		filter.ABVariant = q.Get("ab_variant")
-	}
-	if filter.Outcome == "" {
-		filter.Outcome = q.Get("outcome")
-		if filter.Outcome == "" {
-			filter.Outcome = q.Get("conversion_type")
-		}
-	}
-	if filter.ABTestID == nil {
-		if value, ok := parseInt64Query(q.Get("ab_test_id")); ok {
-			filter.ABTestID = &value
-		}
-	}
-	if filter.UserID == nil {
-		if value, ok := parseInt64Query(q.Get("user_id")); ok {
-			filter.UserID = &value
-		}
-	}
-	if filter.StartAt == nil {
-		if value, ok := parseRFC3339Query(q.Get("start")); ok {
-			filter.StartAt = &value
-		}
-	}
-	if filter.EndAt == nil {
-		if value, ok := parseRFC3339Query(q.Get("end")); ok {
-			filter.EndAt = &value
-		}
-	}
-}
-
 func requireABTestID(filter entity.MetricsFilter) error {
 	if filter.ABTestID != nil {
 		return nil
@@ -223,49 +189,16 @@ func requireABTestID(filter entity.MetricsFilter) error {
 	return errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
 }
 
-func resolveLimitOffset(ctx httpx.IContext, opts *dataquery.PaginationOptions, defaultLimit, maxLimit int) (int, int) {
-	if ctx.GetQuery("page") != "" || ctx.GetQuery("size") != "" {
-		limit := defaultLimit
-		offset := 0
-		if opts != nil {
-			limit = opts.Size
-			offset = (opts.Page - 1) * opts.Size
-		}
-		return limit, offset
-	}
-	q := ctx.GetRequest().URL.Query()
-	limit := defaultLimit
-	if value, err := strconv.Atoi(q.Get("limit")); err == nil && value > 0 {
-		if maxLimit > 0 && value > maxLimit {
-			value = maxLimit
-		}
-		limit = value
-	}
+func resolvePageBounds(opts *dataquery.PaginationOptions, defaultSize int) (int, int) {
+	limit := defaultSize
 	offset := 0
-	if value, err := strconv.Atoi(q.Get("offset")); err == nil && value >= 0 {
-		offset = value
+	if opts != nil {
+		if opts.Size > 0 {
+			limit = opts.Size
+		}
+		if opts.Page > 1 && limit > 0 {
+			offset = (opts.Page - 1) * limit
+		}
 	}
 	return limit, offset
-}
-
-func parseInt64Query(raw string) (int64, bool) {
-	if raw == "" {
-		return 0, false
-	}
-	value, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil {
-		return 0, false
-	}
-	return value, true
-}
-
-func parseRFC3339Query(raw string) (time.Time, bool) {
-	if raw == "" {
-		return time.Time{}, false
-	}
-	value, err := time.Parse(time.RFC3339, raw)
-	if err != nil {
-		return time.Time{}, false
-	}
-	return value, true
 }
