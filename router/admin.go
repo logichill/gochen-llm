@@ -8,20 +8,22 @@ import (
 	"gochen-llm/service"
 	restapi "gochen/api/restapi"
 	dataquery "gochen/db/query"
+	"gochen/db/query/querybind"
 	"gochen/errorx"
 	"gochen/httpx"
 	hbasic "gochen/httpx/nethttp"
 )
 
 type llmAuditLogQueryFields struct {
-	UserID       int64     `query:"ops=eq"`
-	Action       string    `query:"type=enum,ops=eq"`
-	Status       string    `query:"type=enum,ops=eq"`
-	ResourceType string    `query:"type=enum,ops=eq"`
-	CreatedAt    time.Time `query:"ops=gte|lte"`
+	UserID       *int64                     `query:"field=user_id,ops=eq"`
+	Action       string                     `query:"type=enum,ops=eq"`
+	Status       string                     `query:"type=enum,ops=eq"`
+	ResourceType string                     `query:"field=resource_type,type=enum,ops=eq"`
+	CreatedAt    dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
-var llmAuditLogQuerySchema = dataquery.MustInferQuerySchema[llmAuditLogQueryFields](nil)
+var llmAuditLogQueryContract = querybind.MustContract[llmAuditLogQueryFields](nil)
+var llmAuditLogQuerySchema = llmAuditLogQueryContract.Schema()
 var llmAuditLogQueryConfig = restapi.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
 
 // LLMAdminRoutes 提供 LLM 模块的管理接口
@@ -228,19 +230,21 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rejectLegacyQueryParams(ctx,
+	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	params, err := parseMetricsQueryParams(ctx)
+	params, err := restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.CriteriaView().Filters)
-
-	group := ctx.GetRequest().URL.Query().Get("group_by")
+	filter := decodeMetricsFilter(params.Filters)
+	group, err := parseMetricsAggregateGroupBy(ctx)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 	if group == "variant" && filter.ABTestID != nil {
 		rows, err := r.metrics.AggregateByVariant(ctx.GetContext(), filter)
 		if err != nil {
@@ -260,34 +264,16 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	})
 }
 
-func parseAuditLogPaginationOptions(ctx httpx.IContext) (*dataquery.PaginationOptions, error) {
-	return restapi.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
-}
-
-func decodeAuditLogFilter(decoded []dataquery.DecodedFilter) repo.AuditLogFilter {
-	var filter repo.AuditLogFilter
-	for _, item := range decoded {
-		switch item.Field.Name {
-		case "user_id":
-			value := item.Value.Int
-			filter.UserID = &value
-		case "action":
-			filter.Action = item.Value.String
-		case "status":
-			filter.Status = item.Value.String
-		case "resource_type":
-			filter.ResourceType = item.Value.String
-		case "created_at":
-			value := item.Value.Time
-			if item.Op == dataquery.FilterOpGte {
-				filter.StartAt = &value
-			}
-			if item.Op == dataquery.FilterOpLte {
-				filter.EndAt = &value
-			}
-		}
+func decodeAuditLogFilter(filters dataquery.QueryFilters) repo.AuditLogFilter {
+	bound := llmAuditLogQueryContract.MustDecode(filters)
+	return repo.AuditLogFilter{
+		UserID:       bound.UserID,
+		Action:       bound.Action,
+		Status:       bound.Status,
+		ResourceType: bound.ResourceType,
+		StartAt:      bound.CreatedAt.LowerPtr(),
+		EndAt:        bound.CreatedAt.UpperPtr(),
 	}
-	return filter
 }
 
 // markConversion 记录一次转化事件（例如 A/B 测试的成功/点击）
@@ -335,18 +321,18 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM audit repo 未配置")
 	}
-	if err := rejectLegacyQueryParams(ctx,
+	if err := restapi.RejectLegacyQueryParams(ctx,
 		"user_id", "action", "status", "resource_type", "start", "end", "limit", "offset",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	opts, err := parseAuditLogPaginationOptions(ctx)
+	opts, err := restapi.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeAuditLogFilter(opts.CriteriaView().Filters)
-	limit, offset := resolvePageBounds(opts, 50)
+	filter := decodeAuditLogFilter(opts.Filters)
+	limit, offset := opts.Size, opts.Offset()
 
 	list, total, err := r.auditRepo.List(ctx.GetContext(), filter, limit, offset)
 	if err != nil {

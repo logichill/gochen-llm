@@ -9,29 +9,6 @@ import (
 	"gochen/httpx"
 )
 
-func rejectLegacyQueryParams(ctx httpx.IContext, keys ...string) error {
-	if ctx == nil {
-		return nil
-	}
-	params := ctx.GetQueryParams()
-	if len(params) == 0 {
-		return nil
-	}
-
-	var found []string
-	for _, key := range keys {
-		if values, ok := params[key]; ok && len(values) > 0 {
-			found = append(found, key)
-		}
-	}
-	if len(found) == 0 {
-		return nil
-	}
-	sort.Strings(found)
-	return errorx.New(errorx.InvalidInput, "legacy query params are no longer supported; use filter/page/size DSL").
-		WithContext("legacy_params", strings.Join(found, ","))
-}
-
 func rejectLegacyJSONFields(ctx httpx.IContext, keys ...string) error {
 	if ctx == nil {
 		return nil

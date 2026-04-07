@@ -7,23 +7,29 @@ import (
 	"gochen-llm/repo"
 	restapi "gochen/api/restapi"
 	dataquery "gochen/db/query"
+	"gochen/db/query/querybind"
 	"gochen/errorx"
 	"gochen/httpx"
 )
 
 type llmMetricsQueryFields struct {
-	Provider  string    `query:"type=enum,ops=eq"`
-	Model     string    `query:"type=enum,ops=eq"`
-	Status    string    `query:"type=enum,ops=eq"`
-	ABVariant string    `query:"type=enum,ops=eq"`
-	Outcome   string    `query:"type=enum,ops=eq"`
-	ABTestID  int64     `query:"ops=eq"`
-	UserID    int64     `query:"ops=eq"`
-	CreatedAt time.Time `query:"ops=gte|lte"`
+	Provider  string                     `query:"type=enum,ops=eq"`
+	Model     string                     `query:"type=enum,ops=eq"`
+	Status    string                     `query:"type=enum,ops=eq"`
+	ABVariant string                     `query:"type=enum,ops=eq"`
+	Outcome   string                     `query:"type=enum,ops=eq"`
+	ABTestID  *int64                     `query:"field=ab_test_id,ops=eq"`
+	UserID    *int64                     `query:"field=user_id,ops=eq"`
+	CreatedAt dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
-var llmMetricsQuerySchema = dataquery.MustInferQuerySchema[llmMetricsQueryFields](nil)
+var llmMetricsQueryContract = querybind.MustContract[llmMetricsQueryFields](nil)
+var llmMetricsQuerySchema = llmMetricsQueryContract.Schema()
 var llmMetricsQueryConfig = restapi.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
+
+type metricsAggregateQuery struct {
+	GroupBy string `query:"group_by"`
+}
 
 // MetricsRoutes 提供指标看板接口（时间窗口聚合与原始日志分页）
 type MetricsRoutes struct {
@@ -55,19 +61,21 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rejectLegacyQueryParams(ctx,
+	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	params, err := parseMetricsQueryParams(ctx)
+	params, err := restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.CriteriaView().Filters)
-
-	group := ctx.GetRequest().URL.Query().Get("group_by")
+	filter := decodeMetricsFilter(params.Filters)
+	group, err := parseMetricsAggregateGroupBy(ctx)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 	if group == "variant" && filter.ABTestID != nil {
 		rows, err := r.metrics.AggregateByVariant(ctx.GetContext(), filter)
 		if err != nil {
@@ -88,18 +96,18 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rejectLegacyQueryParams(ctx,
+	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end", "limit", "offset",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	opts, err := parseMetricsPaginationOptions(ctx)
+	opts, err := restapi.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(opts.CriteriaView().Filters)
-	limit, offset := resolvePageBounds(opts, 50)
+	filter := decodeMetricsFilter(opts.Filters)
+	limit, offset := opts.Size, opts.Offset()
 
 	list, total, err := r.metrics.List(ctx.GetContext(), filter, limit, offset)
 	if err != nil {
@@ -119,17 +127,17 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rejectLegacyQueryParams(ctx,
+	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	params, err := parseMetricsQueryParams(ctx)
+	params, err := restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.CriteriaView().Filters)
+	filter := decodeMetricsFilter(params.Filters)
 	if err := requireABTestID(filter); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -141,45 +149,19 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	return httpx.WriteSuccess(ctx, map[string]any{"report": report})
 }
 
-func parseMetricsQueryParams(ctx httpx.IContext) (*dataquery.QueryParams, error) {
-	return restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
-}
-
-func parseMetricsPaginationOptions(ctx httpx.IContext) (*dataquery.PaginationOptions, error) {
-	return restapi.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
-}
-
-func decodeMetricsFilter(decoded []dataquery.DecodedFilter) entity.MetricsFilter {
-	var filter entity.MetricsFilter
-	for _, item := range decoded {
-		switch item.Field.Name {
-		case "provider":
-			filter.Provider = item.Value.String
-		case "model":
-			filter.Model = item.Value.String
-		case "status":
-			filter.Status = item.Value.String
-		case "ab_variant":
-			filter.ABVariant = item.Value.String
-		case "outcome":
-			filter.Outcome = item.Value.String
-		case "ab_test_id":
-			value := item.Value.Int
-			filter.ABTestID = &value
-		case "user_id":
-			value := item.Value.Int
-			filter.UserID = &value
-		case "created_at":
-			value := item.Value.Time
-			if item.Op == dataquery.FilterOpGte {
-				filter.StartAt = &value
-			}
-			if item.Op == dataquery.FilterOpLte {
-				filter.EndAt = &value
-			}
-		}
+func decodeMetricsFilter(filters dataquery.QueryFilters) entity.MetricsFilter {
+	bound := llmMetricsQueryContract.MustDecode(filters)
+	return entity.MetricsFilter{
+		Provider:  bound.Provider,
+		Model:     bound.Model,
+		UserID:    bound.UserID,
+		Status:    bound.Status,
+		ABTestID:  bound.ABTestID,
+		ABVariant: bound.ABVariant,
+		StartAt:   bound.CreatedAt.LowerPtr(),
+		EndAt:     bound.CreatedAt.UpperPtr(),
+		Outcome:   bound.Outcome,
 	}
-	return filter
 }
 
 func requireABTestID(filter entity.MetricsFilter) error {
@@ -189,16 +171,10 @@ func requireABTestID(filter entity.MetricsFilter) error {
 	return errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
 }
 
-func resolvePageBounds(opts *dataquery.PaginationOptions, defaultSize int) (int, int) {
-	limit := defaultSize
-	offset := 0
-	if opts != nil {
-		if opts.Size > 0 {
-			limit = opts.Size
-		}
-		if opts.Page > 1 && limit > 0 {
-			offset = (opts.Page - 1) * limit
-		}
+func parseMetricsAggregateGroupBy(ctx httpx.IContext) (string, error) {
+	query, err := restapi.ParseQuery[metricsAggregateQuery](ctx)
+	if err != nil {
+		return "", err
 	}
-	return limit, offset
+	return query.GroupBy, nil
 }
