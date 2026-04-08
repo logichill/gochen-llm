@@ -6,8 +6,8 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	restapi "gochen/api/restapi"
-	queryhelper "gochen/app/helper/query"
 	dataquery "gochen/db/query"
+	"gochen/db/query/querybind"
 	"gochen/errorx"
 	"gochen/httpx"
 )
@@ -23,7 +23,7 @@ type llmMetricsQueryFields struct {
 	CreatedAt dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
-var llmMetricsQueryContract = queryhelper.MustNewContract[llmMetricsQueryFields](nil)
+var llmMetricsQueryContract = querybind.MustNewContract[llmMetricsQueryFields](nil)
 var llmMetricsQuerySchema = llmMetricsQueryContract.Schema()
 var llmMetricsQueryConfig = restapi.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
 
@@ -159,7 +159,7 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 }
 
 func decodeMetricsFilter(filters dataquery.QueryFilters) (entity.MetricsFilter, error) {
-	bound, err := queryhelper.DecodeContract(llmMetricsQueryContract, filters)
+	bound, err := llmMetricsQueryContract.Decode(filters)
 	if err != nil {
 		return entity.MetricsFilter{}, err
 	}

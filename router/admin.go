@@ -7,8 +7,8 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/service"
 	restapi "gochen/api/restapi"
-	queryhelper "gochen/app/helper/query"
 	dataquery "gochen/db/query"
+	"gochen/db/query/querybind"
 	"gochen/errorx"
 	"gochen/httpx"
 	hbasic "gochen/httpx/nethttp"
@@ -22,7 +22,7 @@ type llmAuditLogQueryFields struct {
 	CreatedAt    dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
-var llmAuditLogQueryContract = queryhelper.MustNewContract[llmAuditLogQueryFields](nil)
+var llmAuditLogQueryContract = querybind.MustNewContract[llmAuditLogQueryFields](nil)
 var llmAuditLogQuerySchema = llmAuditLogQueryContract.Schema()
 var llmAuditLogQueryConfig = restapi.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
 
@@ -268,7 +268,7 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 }
 
 func decodeAuditLogFilter(filters dataquery.QueryFilters) (repo.AuditLogFilter, error) {
-	bound, err := queryhelper.DecodeContract(llmAuditLogQueryContract, filters)
+	bound, err := llmAuditLogQueryContract.Decode(filters)
 	if err != nil {
 		return repo.AuditLogFilter{}, err
 	}
