@@ -11,7 +11,7 @@ func TestDecodeMetricsFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 	start := time.Now().UTC().Round(0)
 	end := start.Add(2 * time.Hour)
 
-	filter := decodeMetricsFilter(dataquery.QueryFilters{
+	filter, err := decodeMetricsFilter(dataquery.QueryFilters{
 		"provider": {{
 			Op:    dataquery.FilterOpEq,
 			Value: dataquery.StringValue("openai"),
@@ -35,6 +35,9 @@ func TestDecodeMetricsFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 			},
 		},
 	})
+	if err != nil {
+		t.Fatalf("decodeMetricsFilter returned error: %v", err)
+	}
 
 	if filter.Provider != "openai" {
 		t.Fatalf("expected provider to bind, got %+v", filter)
@@ -56,7 +59,7 @@ func TestDecodeMetricsFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 func TestDecodeAuditLogFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 	start := time.Now().UTC().Round(0)
 
-	filter := decodeAuditLogFilter(dataquery.QueryFilters{
+	filter, err := decodeAuditLogFilter(dataquery.QueryFilters{
 		"user_id": {{
 			Op:    dataquery.FilterOpEq,
 			Value: dataquery.IntValue(99),
@@ -70,6 +73,9 @@ func TestDecodeAuditLogFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 			Value: dataquery.TimeValue(start),
 		}},
 	})
+	if err != nil {
+		t.Fatalf("decodeAuditLogFilter returned error: %v", err)
+	}
 
 	if filter.UserID == nil || *filter.UserID != 99 {
 		t.Fatalf("expected user_id to bind, got %+v", filter.UserID)

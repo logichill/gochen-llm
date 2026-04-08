@@ -6,8 +6,8 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	restapi "gochen/api/restapi"
+	queryhelper "gochen/app/helper/query"
 	dataquery "gochen/db/query"
-	"gochen/db/query/querybind"
 	"gochen/errorx"
 	"gochen/httpx"
 )
@@ -23,7 +23,7 @@ type llmMetricsQueryFields struct {
 	CreatedAt dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
-var llmMetricsQueryContract = querybind.MustContract[llmMetricsQueryFields](nil)
+var llmMetricsQueryContract = queryhelper.MustNewContract[llmMetricsQueryFields](nil)
 var llmMetricsQuerySchema = llmMetricsQueryContract.Schema()
 var llmMetricsQueryConfig = restapi.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
 
@@ -71,7 +71,10 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.Filters)
+	filter, err := decodeMetricsFilter(params.Filters)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 	group, err := parseMetricsAggregateGroupBy(ctx)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
@@ -106,7 +109,10 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(opts.Filters)
+	filter, err := decodeMetricsFilter(opts.Filters)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 	limit, offset := opts.Size, opts.Offset()
 
 	list, total, err := r.metrics.List(ctx.GetContext(), filter, limit, offset)
@@ -137,7 +143,10 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.Filters)
+	filter, err := decodeMetricsFilter(params.Filters)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 	if err := requireABTestID(filter); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -149,8 +158,11 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	return httpx.WriteSuccess(ctx, map[string]any{"report": report})
 }
 
-func decodeMetricsFilter(filters dataquery.QueryFilters) entity.MetricsFilter {
-	bound := llmMetricsQueryContract.MustDecode(filters)
+func decodeMetricsFilter(filters dataquery.QueryFilters) (entity.MetricsFilter, error) {
+	bound, err := queryhelper.DecodeContract(llmMetricsQueryContract, filters)
+	if err != nil {
+		return entity.MetricsFilter{}, err
+	}
 	return entity.MetricsFilter{
 		Provider:  bound.Provider,
 		Model:     bound.Model,
@@ -161,7 +173,7 @@ func decodeMetricsFilter(filters dataquery.QueryFilters) entity.MetricsFilter {
 		StartAt:   bound.CreatedAt.LowerPtr(),
 		EndAt:     bound.CreatedAt.UpperPtr(),
 		Outcome:   bound.Outcome,
-	}
+	}, nil
 }
 
 func requireABTestID(filter entity.MetricsFilter) error {

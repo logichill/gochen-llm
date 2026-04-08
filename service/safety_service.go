@@ -304,7 +304,7 @@ func (c *scaledClock) NewTimer(d time.Duration) clock.ITimer {
 }
 
 // NewTicker 创建Ticker。
-func (c *scaledClock) NewTicker(d time.Duration) clock.ITicker {
+func (c *scaledClock) NewTicker(d time.Duration) (clock.ITicker, error) {
 	if c == nil || c.base == nil {
 		return clock.NewRealClock().NewTicker(d)
 	}

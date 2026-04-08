@@ -7,8 +7,8 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/service"
 	restapi "gochen/api/restapi"
+	queryhelper "gochen/app/helper/query"
 	dataquery "gochen/db/query"
-	"gochen/db/query/querybind"
 	"gochen/errorx"
 	"gochen/httpx"
 	hbasic "gochen/httpx/nethttp"
@@ -22,7 +22,7 @@ type llmAuditLogQueryFields struct {
 	CreatedAt    dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
-var llmAuditLogQueryContract = querybind.MustContract[llmAuditLogQueryFields](nil)
+var llmAuditLogQueryContract = queryhelper.MustNewContract[llmAuditLogQueryFields](nil)
 var llmAuditLogQuerySchema = llmAuditLogQueryContract.Schema()
 var llmAuditLogQueryConfig = restapi.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
 
@@ -240,7 +240,10 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeMetricsFilter(params.Filters)
+	filter, err := decodeMetricsFilter(params.Filters)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 	group, err := parseMetricsAggregateGroupBy(ctx)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
@@ -264,8 +267,11 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	})
 }
 
-func decodeAuditLogFilter(filters dataquery.QueryFilters) repo.AuditLogFilter {
-	bound := llmAuditLogQueryContract.MustDecode(filters)
+func decodeAuditLogFilter(filters dataquery.QueryFilters) (repo.AuditLogFilter, error) {
+	bound, err := queryhelper.DecodeContract(llmAuditLogQueryContract, filters)
+	if err != nil {
+		return repo.AuditLogFilter{}, err
+	}
 	return repo.AuditLogFilter{
 		UserID:       bound.UserID,
 		Action:       bound.Action,
@@ -273,7 +279,7 @@ func decodeAuditLogFilter(filters dataquery.QueryFilters) repo.AuditLogFilter {
 		ResourceType: bound.ResourceType,
 		StartAt:      bound.CreatedAt.LowerPtr(),
 		EndAt:        bound.CreatedAt.UpperPtr(),
-	}
+	}, nil
 }
 
 // markConversion 记录一次转化事件（例如 A/B 测试的成功/点击）
@@ -331,7 +337,10 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	filter := decodeAuditLogFilter(opts.Filters)
+	filter, err := decodeAuditLogFilter(opts.Filters)
+	if err != nil {
+		return httpx.WriteError(ctx, err)
+	}
 	limit, offset := opts.Size, opts.Offset()
 
 	list, total, err := r.auditRepo.List(ctx.GetContext(), filter, limit, offset)
