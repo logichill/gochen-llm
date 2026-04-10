@@ -80,14 +80,14 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 		return httpx.WriteError(ctx, err)
 	}
 	if group == "variant" && filter.ABTestID != nil {
-		rows, err := r.metrics.AggregateByVariant(ctx.GetContext(), filter)
+		rows, err := r.metrics.AggregateByVariant(ctx.RequestContext(), filter)
 		if err != nil {
 			return httpx.WriteError(ctx, err)
 		}
 		return httpx.WriteSuccess(ctx, map[string]any{"variants": rows})
 	}
 
-	report, err := r.metrics.Aggregate(ctx.GetContext(), filter)
+	report, err := r.metrics.Aggregate(ctx.RequestContext(), filter)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -115,7 +115,7 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	}
 	limit, offset := opts.Size, opts.Offset()
 
-	list, total, err := r.metrics.List(ctx.GetContext(), filter, limit, offset)
+	list, total, err := r.metrics.List(ctx.RequestContext(), filter, limit, offset)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -151,7 +151,7 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 		return httpx.WriteError(ctx, err)
 	}
 
-	report, err := r.metrics.Significance(ctx.GetContext(), filter)
+	report, err := r.metrics.Significance(ctx.RequestContext(), filter)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}

@@ -87,7 +87,7 @@ func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
 	}
 
-	cfgs, err := r.manager.ListEffectiveConfigs(ctx.GetContext())
+	cfgs, err := r.manager.ListEffectiveConfigs(ctx.RequestContext())
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -110,11 +110,11 @@ func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IContext) error {
 		return httpx.WriteError(ctx, err)
 	}
 
-	if err := r.manager.ReplaceConfigs(ctx.GetContext(), body.Configs); err != nil {
+	if err := r.manager.ReplaceConfigs(ctx.RequestContext(), body.Configs); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	if err := r.manager.Reload(ctx.GetContext()); err != nil {
+	if err := r.manager.Reload(ctx.RequestContext()); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
@@ -140,11 +140,11 @@ func (r *LLMAdminRoutes) updatePricing(ctx httpx.IContext) error {
 			return httpx.WriteError(ctx, err)
 		}
 	}
-	if err := r.cfgRepo.UpdatePricing(ctx.GetContext(), body.Pricing); err != nil {
+	if err := r.cfgRepo.UpdatePricing(ctx.RequestContext(), body.Pricing); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 	if r.manager != nil {
-		_ = r.manager.Reload(ctx.GetContext())
+		_ = r.manager.Reload(ctx.RequestContext())
 	}
 	return httpx.WriteSuccessMessage(ctx, 200, "ok", nil)
 }
@@ -155,7 +155,7 @@ func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
 	}
 
-	if err := r.manager.Reload(ctx.GetContext()); err != nil {
+	if err := r.manager.Reload(ctx.RequestContext()); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
@@ -168,7 +168,7 @@ func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
 	}
 
-	cfg, err := r.safetyRepo.GetActive(ctx.GetContext())
+	cfg, err := r.safetyRepo.GetActive(ctx.RequestContext())
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -202,7 +202,7 @@ func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IContext) error {
 		LogLevel:              body.Config.LogLevel,
 	}
 
-	if err := r.safetyRepo.Save(ctx.GetContext(), cfg); err != nil {
+	if err := r.safetyRepo.Save(ctx.RequestContext(), cfg); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
@@ -215,7 +215,7 @@ func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
 	}
 
-	status, err := r.manager.ListStatus(ctx.GetContext())
+	status, err := r.manager.ListStatus(ctx.RequestContext())
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -249,7 +249,7 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 		return httpx.WriteError(ctx, err)
 	}
 	if group == "variant" && filter.ABTestID != nil {
-		rows, err := r.metrics.AggregateByVariant(ctx.GetContext(), filter)
+		rows, err := r.metrics.AggregateByVariant(ctx.RequestContext(), filter)
 		if err != nil {
 			return httpx.WriteError(ctx, err)
 		}
@@ -258,7 +258,7 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 		})
 	}
 
-	report, err := r.metrics.Aggregate(ctx.GetContext(), filter)
+	report, err := r.metrics.Aggregate(ctx.RequestContext(), filter)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -316,7 +316,7 @@ func (r *LLMAdminRoutes) markConversion(ctx httpx.IContext) error {
 		Status:         "converted",
 		Outcome:        body.Outcome,
 	}
-	if err := r.metrics.Save(ctx.GetContext(), record); err != nil {
+	if err := r.metrics.Save(ctx.RequestContext(), record); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 	return httpx.WriteSuccessMessage(ctx, 200, "ok", nil)
@@ -343,7 +343,7 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	}
 	limit, offset := opts.Size, opts.Offset()
 
-	list, total, err := r.auditRepo.List(ctx.GetContext(), filter, limit, offset)
+	list, total, err := r.auditRepo.List(ctx.RequestContext(), filter, limit, offset)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -360,7 +360,7 @@ func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
 	}
-	policy, err := r.safetyRepo.GetActive(ctx.GetContext())
+	policy, err := r.safetyRepo.GetActive(ctx.RequestContext())
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -375,10 +375,10 @@ func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 	}
 	if r.rateRepo != nil {
 		since := time.Now().Add(-1 * time.Hour)
-		if total, err := r.rateRepo.SumSince(ctx.GetContext(), "chat", since); err == nil {
+		if total, err := r.rateRepo.SumSince(ctx.RequestContext(), "chat", since); err == nil {
 			rateSummary["requests_last_hour"] = total
 		}
-		if recent, err := r.rateRepo.ListRecent(ctx.GetContext(), "chat", 20); err == nil {
+		if recent, err := r.rateRepo.ListRecent(ctx.RequestContext(), "chat", 20); err == nil {
 			rateSummary["recent_windows"] = recent
 		}
 	}

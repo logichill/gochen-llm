@@ -43,16 +43,16 @@ func newRouterTestContextWithBody(method, rawURL string, body []byte) *routerTes
 	return &routerTestContext{request: req, body: append([]byte(nil), body...)}
 }
 
-func (c *routerTestContext) GetMethod() string           { return c.request.Method }
-func (c *routerTestContext) GetPath() string             { return c.request.URL.Path }
-func (c *routerTestContext) GetHeader(key string) string { return c.request.Header.Get(key) }
-func (c *routerTestContext) GetQuery(key string) string  { return c.request.URL.Query().Get(key) }
-func (c *routerTestContext) GetParam(key string) string  { return "" }
-func (c *routerTestContext) GetQueryParams() url.Values  { return c.request.URL.Query() }
-func (c *routerTestContext) GetBody() ([]byte, error)    { return append([]byte(nil), c.body...), nil }
-func (c *routerTestContext) GetRequest() *http.Request   { return c.request }
-func (c *routerTestContext) ClientIP() string            { return "127.0.0.1" }
-func (c *routerTestContext) UserAgent() string           { return "test" }
+func (c *routerTestContext) Method() string           { return c.request.Method }
+func (c *routerTestContext) Path() string             { return c.request.URL.Path }
+func (c *routerTestContext) Header(key string) string { return c.request.Header.Get(key) }
+func (c *routerTestContext) Query(key string) string  { return c.request.URL.Query().Get(key) }
+func (c *routerTestContext) Param(key string) string  { return "" }
+func (c *routerTestContext) QueryParams() url.Values  { return c.request.URL.Query() }
+func (c *routerTestContext) Body() ([]byte, error)    { return append([]byte(nil), c.body...), nil }
+func (c *routerTestContext) Request() *http.Request   { return c.request }
+func (c *routerTestContext) ClientIP() string         { return "127.0.0.1" }
+func (c *routerTestContext) UserAgent() string        { return "test" }
 func (c *routerTestContext) BindJSON(obj any) error {
 	if len(c.body) == 0 {
 		return io.EOF
@@ -88,7 +88,7 @@ func (c *routerTestContext) Get(key string) (httpx.ContextValue, bool) {
 	value, ok := c.values[key]
 	return value, ok
 }
-func (c *routerTestContext) GetRequired(key string) (httpx.ContextValue, error) {
+func (c *routerTestContext) Required(key string) (httpx.ContextValue, error) {
 	if value, ok := c.Get(key); ok {
 		return value, nil
 	}
@@ -100,8 +100,8 @@ func (c *routerTestContext) AbortWithStatusJSON(code int, jsonObj httpx.JSONBody
 	c.status = code
 	c.jsonObj, _ = httpx.JSONBodyAs[any](jsonObj)
 }
-func (c *routerTestContext) IsAborted() bool                   { return false }
-func (c *routerTestContext) GetContext() httpx.IRequestContext { return nil }
+func (c *routerTestContext) IsAborted() bool                       { return false }
+func (c *routerTestContext) RequestContext() httpx.IRequestContext { return nil }
 func (c *routerTestContext) SetContext(ctx httpx.IRequestContext) {
 }
 

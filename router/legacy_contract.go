@@ -13,7 +13,7 @@ func rejectLegacyJSONFields(ctx httpx.IContext, keys ...string) error {
 	if ctx == nil {
 		return nil
 	}
-	body, err := ctx.GetBody()
+	body, err := ctx.Body()
 	if err != nil || len(body) == 0 {
 		return err
 	}
