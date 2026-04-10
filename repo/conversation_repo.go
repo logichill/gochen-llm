@@ -11,10 +11,10 @@ import (
 // IConversationRepo 会话仓储
 type IConversationRepo interface {
 	CreateConversation(ctx context.Context, conv *entity.Conversation) error
-	GetConversation(ctx context.Context, id int64) (*entity.Conversation, error)
+	FindConversation(ctx context.Context, id int64) (*entity.Conversation, error)
 	UpdateConversation(ctx context.Context, conv *entity.Conversation) error
 	AddMessage(ctx context.Context, msg *entity.Message) error
-	GetMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error)
+	ListMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error)
 	TrimMessages(ctx context.Context, conversationID int64, keepLast int) error
 }
 
@@ -45,8 +45,8 @@ func (r *conversationRepoImpl) CreateConversation(ctx context.Context, conv *ent
 	return nil
 }
 
-// GetConversation 返回会话。
-func (r *conversationRepoImpl) GetConversation(ctx context.Context, id int64) (*entity.Conversation, error) {
+// FindConversation 返回会话。
+func (r *conversationRepoImpl) FindConversation(ctx context.Context, id int64) (*entity.Conversation, error) {
 	var conv entity.Conversation
 	model, err := r.conversationModel.model(r.orm)
 	if err != nil {
@@ -86,8 +86,8 @@ func (r *conversationRepoImpl) AddMessage(ctx context.Context, msg *entity.Messa
 	return nil
 }
 
-// GetMessages 返回消息集合。
-func (r *conversationRepoImpl) GetMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
+// ListMessages 返回消息集合。
+func (r *conversationRepoImpl) ListMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
 	if limit <= 0 {
 		limit = 50
 	}

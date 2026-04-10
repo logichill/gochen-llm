@@ -71,13 +71,13 @@ func (r *LLMAdminRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 	return nil
 }
 
-// GetName 返回名称。
-func (r *LLMAdminRoutes) GetName() string {
+// Name 返回名称。
+func (r *LLMAdminRoutes) Name() string {
 	return "llm_admin"
 }
 
-// GetPriority 返回优先级。
-func (r *LLMAdminRoutes) GetPriority() int {
+// Priority 返回优先级。
+func (r *LLMAdminRoutes) Priority() int {
 	return 305
 }
 
@@ -168,7 +168,7 @@ func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IContext) error {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
 	}
 
-	cfg, err := r.safetyRepo.GetActive(ctx.RequestContext())
+	cfg, err := r.safetyRepo.FindActive(ctx.RequestContext())
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -360,7 +360,7 @@ func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
 		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
 	}
-	policy, err := r.safetyRepo.GetActive(ctx.RequestContext())
+	policy, err := r.safetyRepo.FindActive(ctx.RequestContext())
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -369,7 +369,7 @@ func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 		"resource_type": "chat",
 	}
 	if r.safetySvc != nil {
-		settings := r.safetySvc.GetRateLimitSettings()
+		settings := r.safetySvc.RateLimitSettings()
 		rateSummary["per_minute"] = settings.PerMinute
 		rateSummary["burst"] = settings.Burst
 	}

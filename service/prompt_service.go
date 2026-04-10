@@ -16,8 +16,8 @@ import (
 
 // IPromptService 定义提示词服务能力接口。
 type IPromptService interface {
-	GetPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
-	GetPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error)
+	FindPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
+	FindPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error)
 	RenderPrompt(ctx context.Context, tmpl *entity.PromptTemplate, vars map[string]any) (string, error)
 	ComposePrompts(ctx context.Context, names []string, scope entity.PromptScope, scopeID int64, vars map[string]any) (string, error)
 	SavePrompt(ctx context.Context, tmpl *entity.PromptTemplate) error
@@ -27,7 +27,7 @@ type IPromptService interface {
 	ExportPrompts(ctx context.Context, filter repo.PromptFilter) ([]byte, error)
 	ImportPrompts(ctx context.Context, data []byte) error
 	StartABTest(ctx context.Context, test *entity.ABTest) error
-	GetABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error)
+	FindABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error)
 	AssignABVariant(ctx context.Context, testID int64, userID int64) (*entity.PromptTemplate, string, error)
 }
 
@@ -42,13 +42,13 @@ func NewPromptService(templates repo.IPromptTemplateRepository, versions repo.IP
 	return &promptServiceImpl{templates: templates, versions: versions, abTests: abTests}
 }
 
-// GetPrompt 返回提示词。
-func (s *promptServiceImpl) GetPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
+// FindPrompt 返回提示词。
+func (s *promptServiceImpl) FindPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
 	return s.templates.FindEffective(ctx, name, scope, scopeID)
 }
 
-// GetPromptByID 返回提示词按ID。
-func (s *promptServiceImpl) GetPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
+// FindPromptByID 返回提示词按ID。
+func (s *promptServiceImpl) FindPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 	return s.templates.Get(ctx, id)
 }
 
@@ -75,7 +75,7 @@ func (s *promptServiceImpl) RenderPrompt(ctx context.Context, tmpl *entity.Promp
 func (s *promptServiceImpl) ComposePrompts(ctx context.Context, names []string, scope entity.PromptScope, scopeID int64, vars map[string]any) (string, error) {
 	var buf bytes.Buffer
 	for idx, name := range names {
-		tmpl, err := s.GetPrompt(ctx, name, scope, scopeID)
+		tmpl, err := s.FindPrompt(ctx, name, scope, scopeID)
 		if err != nil {
 			return "", err
 		}
@@ -302,8 +302,8 @@ func (s *promptServiceImpl) StartABTest(ctx context.Context, test *entity.ABTest
 	return s.abTests.Save(ctx, test)
 }
 
-// GetABTestResult 返回A/B测试结果。
-func (s *promptServiceImpl) GetABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error) {
+// FindABTestResult 返回A/B测试结果。
+func (s *promptServiceImpl) FindABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error) {
 	test, err := s.abTests.Get(ctx, testID)
 	if err != nil || test == nil {
 		return test, err

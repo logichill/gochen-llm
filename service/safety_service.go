@@ -18,7 +18,7 @@ import (
 
 // ISafetyService 聚合安全与审计能力（首版提供关键词过滤与系统安全提示）
 type ISafetyService interface {
-	GetActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error)
+	ActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error)
 	BuildSystemPrompt(ctx context.Context) (string, error)
 	ValidateInput(ctx context.Context, input string) (*SafetyResult, error)
 	ValidateOutput(ctx context.Context, output string) (*SafetyResult, error)
@@ -27,7 +27,7 @@ type ISafetyService interface {
 	RecordAuditLog(ctx context.Context, log *entity.AuditLog) error
 	DetectPII(ctx context.Context, content string) (*SafetyResult, error)
 	MaskPII(ctx context.Context, content string) (string, error)
-	GetRateLimitSettings() RateLimitSettings
+	RateLimitSettings() RateLimitSettings
 }
 
 type safetyServiceImpl struct {
@@ -90,25 +90,25 @@ func (s *safetyServiceImpl) initRateLimiter() {
 	})
 }
 
-// GetActivePolicy 返回生效中的策略。
-func (s *safetyServiceImpl) GetActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error) {
+// ActivePolicy 返回生效中的策略。
+func (s *safetyServiceImpl) ActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error) {
 	if s.repo == nil {
 		return nil, nil
 	}
-	return s.repo.GetActive(ctx)
+	return s.repo.FindActive(ctx)
 }
 
 // BuildSystemPrompt 构造系统提示词。
 func (s *safetyServiceImpl) BuildSystemPrompt(ctx context.Context) (string, error) {
-	policy, err := s.GetActivePolicy(ctx)
+	policy, err := s.ActivePolicy(ctx)
 	if err != nil || policy == nil || !policy.Enabled {
 		return "", err
 	}
 	return strings.TrimSpace(policy.GlobalSystemPrompt), nil
 }
 
-// GetRateLimitSettings 返回速率限额设置。
-func (s *safetyServiceImpl) GetRateLimitSettings() RateLimitSettings {
+// RateLimitSettings 返回速率限额设置。
+func (s *safetyServiceImpl) RateLimitSettings() RateLimitSettings {
 	return RateLimitSettings{
 		PerMinute: s.rateLimitPerM,
 		Burst:     s.rateLimitBurst,
@@ -237,7 +237,7 @@ func (s *safetyServiceImpl) estimateRetryAfter() int {
 
 // validateText 校验Text。
 func (s *safetyServiceImpl) validateText(ctx context.Context, text string) (*SafetyResult, error) {
-	policy, err := s.GetActivePolicy(ctx)
+	policy, err := s.ActivePolicy(ctx)
 	if err != nil || policy == nil || !policy.Enabled {
 		return &SafetyResult{Allowed: true}, err
 	}

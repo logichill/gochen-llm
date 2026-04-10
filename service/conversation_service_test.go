@@ -26,7 +26,7 @@ func (r *testConversationRepo) CreateConversation(ctx context.Context, conv *ent
 	return nil
 }
 
-func (r *testConversationRepo) GetConversation(ctx context.Context, id int64) (*entity.Conversation, error) {
+func (r *testConversationRepo) FindConversation(ctx context.Context, id int64) (*entity.Conversation, error) {
 	if r.getConversationFn != nil {
 		return r.getConversationFn(ctx, id)
 	}
@@ -47,7 +47,7 @@ func (r *testConversationRepo) AddMessage(ctx context.Context, msg *entity.Messa
 	return nil
 }
 
-func (r *testConversationRepo) GetMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
+func (r *testConversationRepo) ListMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
 	if r.getMessagesFn != nil {
 		return r.getMessagesFn(ctx, conversationID, limit)
 	}
@@ -135,7 +135,7 @@ func TestConversationServiceAddAndGetMessages(t *testing.T) {
 		t.Fatalf("expected conversation id injected, got %#v", gotMsg)
 	}
 
-	msgs, err := svc.GetMessages(context.Background(), 10, 0)
+	msgs, err := svc.ListMessages(context.Background(), 10, 0)
 	if err != nil {
 		t.Fatalf("get messages failed: %v", err)
 	}

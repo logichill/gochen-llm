@@ -41,11 +41,11 @@ func NewMetricsRoutes(metrics repo.IMetricsRepo) *MetricsRoutes {
 	return &MetricsRoutes{metrics: metrics}
 }
 
-// GetName 返回名称。
-func (r *MetricsRoutes) GetName() string { return "llm_metrics" }
+// Name 返回名称。
+func (r *MetricsRoutes) Name() string { return "llm_metrics" }
 
-// GetPriority 返回优先级。
-func (r *MetricsRoutes) GetPriority() int { return 310 }
+// Priority 返回优先级。
+func (r *MetricsRoutes) Priority() int { return 310 }
 
 // RegisterRoutes 注册路由集合。
 func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {

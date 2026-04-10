@@ -207,7 +207,7 @@ func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatReq
 		return nil, errorx.New(errorx.Internal, "PromptService 未配置")
 	}
 
-	tmpl, err := s.prompt.GetPrompt(ctx, req.PromptName, req.PromptScope, req.PromptScopeID)
+	tmpl, err := s.prompt.FindPrompt(ctx, req.PromptName, req.PromptScope, req.PromptScopeID)
 	if err != nil {
 		return nil, err
 	}

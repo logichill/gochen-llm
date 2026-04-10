@@ -10,7 +10,7 @@ import (
 func AdminOnlyMiddleware() httpx.Middleware {
 	return func(ctx httpx.IContext, next func() error) error {
 		reqCtx := ctx.RequestContext()
-		if reqCtx == nil || ctxx.GetUserID(reqCtx) == 0 {
+		if reqCtx == nil || ctxx.UserID(reqCtx) == 0 {
 			return errorx.New(errorx.Unauthorized, "用户未认证")
 		}
 		return next()

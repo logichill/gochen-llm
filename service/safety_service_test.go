@@ -17,7 +17,7 @@ type testSafetyPolicyRepo struct {
 	saveFn      func(ctx context.Context, policy *entity.SafetyPolicy) error
 }
 
-func (r *testSafetyPolicyRepo) GetActive(ctx context.Context) (*entity.SafetyPolicy, error) {
+func (r *testSafetyPolicyRepo) FindActive(ctx context.Context) (*entity.SafetyPolicy, error) {
 	if r.getActiveFn != nil {
 		return r.getActiveFn(ctx)
 	}
@@ -205,7 +205,7 @@ func TestSafetyServiceRateLimitAndAudit(t *testing.T) {
 		t.Fatalf("record audit without repo should not fail: %v", err)
 	}
 
-	settings := baseSvc.GetRateLimitSettings()
+	settings := baseSvc.RateLimitSettings()
 	if settings.PerMinute != impl.rateLimitPerM || settings.Burst != impl.rateLimitBurst {
 		t.Fatalf("unexpected rate limit settings: %#v", settings)
 	}

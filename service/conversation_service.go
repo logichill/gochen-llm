@@ -13,9 +13,9 @@ import (
 // IConversationService 会话服务
 type IConversationService interface {
 	CreateConversation(ctx context.Context, userID int64, metadata map[string]any) (*entity.Conversation, error)
-	GetConversation(ctx context.Context, conversationID int64) (*entity.Conversation, error)
+	FindConversation(ctx context.Context, conversationID int64) (*entity.Conversation, error)
 	AddMessage(ctx context.Context, conversationID int64, msg *entity.Message) error
-	GetMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error)
+	ListMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error)
 	SummarizeConversation(ctx context.Context, conversationID int64) (string, error)
 	CreateBranch(ctx context.Context, conversationID int64, fromMessageID int64) (*entity.Conversation, error)
 	CompressHistory(ctx context.Context, conversationID int64) error
@@ -63,9 +63,9 @@ func (s *conversationServiceImpl) CreateConversation(ctx context.Context, userID
 	return conv, nil
 }
 
-// GetConversation 返回会话。
-func (s *conversationServiceImpl) GetConversation(ctx context.Context, conversationID int64) (*entity.Conversation, error) {
-	return s.repo.GetConversation(ctx, conversationID)
+// FindConversation 返回会话。
+func (s *conversationServiceImpl) FindConversation(ctx context.Context, conversationID int64) (*entity.Conversation, error) {
+	return s.repo.FindConversation(ctx, conversationID)
 }
 
 // AddMessage 添加消息。
@@ -77,17 +77,17 @@ func (s *conversationServiceImpl) AddMessage(ctx context.Context, conversationID
 	return s.repo.AddMessage(ctx, msg)
 }
 
-// GetMessages 返回消息集合。
-func (s *conversationServiceImpl) GetMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
+// ListMessages 返回消息集合。
+func (s *conversationServiceImpl) ListMessages(ctx context.Context, conversationID int64, limit int) ([]*entity.Message, error) {
 	if limit <= 0 {
 		limit = 50
 	}
-	return s.repo.GetMessages(ctx, conversationID, limit)
+	return s.repo.ListMessages(ctx, conversationID, limit)
 }
 
 // SummarizeConversation 汇总会话。
 func (s *conversationServiceImpl) SummarizeConversation(ctx context.Context, conversationID int64) (string, error) {
-	msgs, err := s.repo.GetMessages(ctx, conversationID, 50)
+	msgs, err := s.repo.ListMessages(ctx, conversationID, 50)
 	if err != nil {
 		return "", err
 	}
@@ -115,7 +115,7 @@ func (s *conversationServiceImpl) SummarizeConversation(ctx context.Context, con
 
 // CreateBranch 创建分支。
 func (s *conversationServiceImpl) CreateBranch(ctx context.Context, conversationID int64, fromMessageID int64) (*entity.Conversation, error) {
-	base, err := s.repo.GetConversation(ctx, conversationID)
+	base, err := s.repo.FindConversation(ctx, conversationID)
 	if err != nil {
 		return nil, err
 	}

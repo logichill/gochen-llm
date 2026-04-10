@@ -10,7 +10,7 @@ import (
 
 // ISafetyPolicyRepo 管理系统级 LLM 安全策略
 type ISafetyPolicyRepo interface {
-	GetActive(ctx context.Context) (*entity.SafetyPolicy, error)
+	FindActive(ctx context.Context) (*entity.SafetyPolicy, error)
 	Save(ctx context.Context, policy *entity.SafetyPolicy) error
 }
 
@@ -27,8 +27,8 @@ func NewSafetyPolicyRepo(o orm.IOrm) ISafetyPolicyRepo {
 	}
 }
 
-// GetActive 返回当前生效项。
-func (r *safetyPolicyRepoImpl) GetActive(ctx context.Context) (*entity.SafetyPolicy, error) {
+// FindActive 返回当前生效项。
+func (r *safetyPolicyRepoImpl) FindActive(ctx context.Context) (*entity.SafetyPolicy, error) {
 	var policy entity.SafetyPolicy
 	model, err := r.model.model(r.orm)
 	if err != nil {

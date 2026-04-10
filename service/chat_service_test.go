@@ -46,14 +46,14 @@ type testPromptService struct {
 	assignABVariantFn func(ctx context.Context, testID int64, userID int64) (*entity.PromptTemplate, string, error)
 }
 
-func (s *testPromptService) GetPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
+func (s *testPromptService) FindPrompt(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
 	if s.getPromptFn != nil {
 		return s.getPromptFn(ctx, name, scope, scopeID)
 	}
 	return nil, nil
 }
 
-func (s *testPromptService) GetPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
+func (s *testPromptService) FindPromptByID(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 	return nil, nil
 }
 
@@ -96,7 +96,7 @@ func (s *testPromptService) StartABTest(ctx context.Context, test *entity.ABTest
 	return nil
 }
 
-func (s *testPromptService) GetABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error) {
+func (s *testPromptService) FindABTestResult(ctx context.Context, testID int64) (*entity.ABTest, error) {
 	return nil, nil
 }
 
@@ -115,7 +115,7 @@ type testSafetyService struct {
 	recordAuditLogFn    func(ctx context.Context, log *entity.AuditLog) error
 }
 
-func (s *testSafetyService) GetActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error) {
+func (s *testSafetyService) ActivePolicy(ctx context.Context) (*entity.SafetyPolicy, error) {
 	return nil, nil
 }
 
@@ -166,7 +166,7 @@ func (s *testSafetyService) MaskPII(ctx context.Context, content string) (string
 	return content, nil
 }
 
-func (s *testSafetyService) GetRateLimitSettings() RateLimitSettings {
+func (s *testSafetyService) RateLimitSettings() RateLimitSettings {
 	return RateLimitSettings{}
 }
 
