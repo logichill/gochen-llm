@@ -21,11 +21,12 @@ import (
 )
 
 type routerTestContext struct {
-	status  int
-	jsonObj any
-	values  map[string]httpx.ContextValue
-	body    []byte
-	request *http.Request
+	status     int
+	jsonObj    any
+	values     map[string]httpx.ContextValue
+	body       []byte
+	request    *http.Request
+	requestCtx httpx.IRequestContext
 }
 
 func newRouterTestContext(method, rawURL string) *routerTestContext {
@@ -101,8 +102,9 @@ func (c *routerTestContext) AbortWithStatusJSON(code int, jsonObj httpx.JSONBody
 	c.jsonObj, _ = httpx.JSONBodyAs[any](jsonObj)
 }
 func (c *routerTestContext) IsAborted() bool                       { return false }
-func (c *routerTestContext) RequestContext() httpx.IRequestContext { return nil }
+func (c *routerTestContext) RequestContext() httpx.IRequestContext { return c.requestCtx }
 func (c *routerTestContext) SetContext(ctx httpx.IRequestContext) {
+	c.requestCtx = ctx
 }
 
 type stubProviderManager struct {

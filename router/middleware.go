@@ -1,17 +1,37 @@
 package router
 
 import (
-	ctxx "gochen/contextx"
+	"context"
+
+	goauthz "gochen/authz"
 	"gochen/errorx"
 	"gochen/httpx"
 )
 
-// AdminOnlyMiddleware 默认仅检查用户已认证，角色校验由上层应用按需追加
+const adminEntryPermission = "*:*:*"
+
+// AdminOnlyMiddleware 要求请求上下文里存在管理员 principal。
 func AdminOnlyMiddleware() httpx.Middleware {
 	return func(ctx httpx.IContext, next func() error) error {
 		reqCtx := ctx.RequestContext()
-		if reqCtx == nil || ctxx.UserID(reqCtx) == 0 {
+		if reqCtx != nil {
+			var baseCtx context.Context = reqCtx
+			if bound, err := goauthz.WithConsistencyMode(baseCtx, goauthz.ConsistencyModeStrong); err == nil {
+				baseCtx = bound
+			}
+			if bound, err := goauthz.WithHighRiskAuthorization(baseCtx); err == nil {
+				baseCtx = bound
+			}
+			reqCtx = reqCtx.WithContext(baseCtx)
+			ctx.SetContext(reqCtx)
+		}
+
+		principal, ok := goauthz.PrincipalFromContext(reqCtx)
+		if !ok {
 			return errorx.New(errorx.Unauthorized, "用户未认证")
+		}
+		if !principal.IsSystem && !principal.HasPermission(adminEntryPermission) {
+			return errorx.New(errorx.Forbidden, "需要管理员权限")
 		}
 		return next()
 	}
