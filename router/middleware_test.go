@@ -66,7 +66,6 @@ func TestAdminOnlyMiddlewareRejectsUnauthenticatedRequest(t *testing.T) {
 func TestAdminOnlyMiddlewareRejectsNonAdminPrincipal(t *testing.T) {
 	ctx := newLLMAdminContext(t, goauthz.Principal{
 		SubjectID:   7,
-		TenantID:    "default",
 		Permissions: []string{"api:llm:read"},
 	})
 	called := false
@@ -86,7 +85,6 @@ func TestAdminOnlyMiddlewareRejectsNonAdminPrincipal(t *testing.T) {
 func TestAdminOnlyMiddlewareAllowsAdminPrincipal(t *testing.T) {
 	ctx := newLLMAdminContext(t, goauthz.Principal{
 		SubjectID:   7,
-		TenantID:    "default",
 		Permissions: []string{"*:*:*"},
 	})
 	called := false

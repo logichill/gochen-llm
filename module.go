@@ -12,36 +12,34 @@ import (
 
 // NewModule 创建模块。
 func NewModule() (server.IModule, error) {
-	return boot.BuildModule(boot.ModuleConfig{
-		ID:   "llm",
-		Name: "LLM",
-		Providers: []any{
-			// Repos
-			repo.NewProviderConfigRepo,
-			repo.NewSafetyPolicyRepo,
-			repo.NewPromptTemplateRepo,
-			repo.NewPromptVersionRepo,
-			repo.NewABTestRepo,
-			repo.NewAuditLogRepo,
-			repo.NewRateLimitRepo,
-			repo.NewConversationRepo,
-			repo.NewMetricsRepo,
-			// Services
-			service.NewProviderManager,
-			service.NewSafetyService,
-			service.NewPromptService,
-			service.NewConversationService,
-			service.NewCostCalculator,
-			service.NewChatService,
-		},
-		RouteRegistrars: []any{
-			router.NewLLMAdminRoutes,
-			router.NewMetricsRoutes,
-		},
-		RuntimeComponents: []any{
-			newProviderManagerRuntime,
-		},
-	}), nil
+	return boot.BuildModule(
+		boot.Module("llm").
+			Name("LLM").
+			Provide(
+				// Repos
+				repo.NewProviderConfigRepo,
+				repo.NewSafetyPolicyRepo,
+				repo.NewPromptTemplateRepo,
+				repo.NewPromptVersionRepo,
+				repo.NewABTestRepo,
+				repo.NewAuditLogRepo,
+				repo.NewRateLimitRepo,
+				repo.NewConversationRepo,
+				repo.NewMetricsRepo,
+				// Services
+				service.NewProviderManager,
+				service.NewSafetyService,
+				service.NewPromptService,
+				service.NewConversationService,
+				service.NewCostCalculator,
+				service.NewChatService,
+			).
+			RouteRegistrar(
+				router.NewLLMAdminRoutes,
+				router.NewMetricsRoutes,
+			).
+			RuntimeComponent(newProviderManagerRuntime),
+	), nil
 }
 
 type providerManagerRuntime struct {
