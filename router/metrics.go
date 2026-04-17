@@ -50,6 +50,7 @@ func (r *MetricsRoutes) Priority() int { return 310 }
 // RegisterRoutes 注册路由集合。
 func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 	metricsGroup := group.Group("/admin/llm/metrics")
+	metricsGroup.Use(ReadPermissionMiddleware())
 	metricsGroup.GET("/agg", r.aggregate)
 	metricsGroup.GET("/list", r.list)
 	metricsGroup.GET("/significance", r.significance)

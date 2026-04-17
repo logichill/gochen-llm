@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	llmauthz "gochen-llm/moduleauthz"
 	goauthz "gochen/authz"
 	"gochen/errorx"
 	"gochen/httpx"
@@ -47,11 +48,11 @@ func newLLMAdminContext(t *testing.T, principal goauthz.Principal) *routerTestCo
 	return ctx
 }
 
-func TestAdminOnlyMiddlewareRejectsUnauthenticatedRequest(t *testing.T) {
+func TestReadPermissionMiddlewareRejectsUnauthenticatedRequest(t *testing.T) {
 	ctx := newRouterTestContext("GET", "/admin/llm/config")
 	called := false
 
-	err := AdminOnlyMiddleware()(ctx, func() error {
+	err := ReadPermissionMiddleware()(ctx, func() error {
 		called = true
 		return nil
 	})
@@ -63,14 +64,14 @@ func TestAdminOnlyMiddlewareRejectsUnauthenticatedRequest(t *testing.T) {
 	}
 }
 
-func TestAdminOnlyMiddlewareRejectsNonAdminPrincipal(t *testing.T) {
+func TestWritePermissionMiddlewareRejectsReadOnlyPrincipal(t *testing.T) {
 	ctx := newLLMAdminContext(t, goauthz.Principal{
 		SubjectID:   7,
-		Permissions: []string{"api:llm:read"},
+		Permissions: []string{llmauthz.PermissionSet.Code(goauthz.PermissionActionRead)},
 	})
 	called := false
 
-	err := AdminOnlyMiddleware()(ctx, func() error {
+	err := WritePermissionMiddleware()(ctx, func() error {
 		called = true
 		return nil
 	})
@@ -82,14 +83,33 @@ func TestAdminOnlyMiddlewareRejectsNonAdminPrincipal(t *testing.T) {
 	}
 }
 
-func TestAdminOnlyMiddlewareAllowsAdminPrincipal(t *testing.T) {
+func TestReadPermissionMiddlewareAllowsReadPrincipal(t *testing.T) {
 	ctx := newLLMAdminContext(t, goauthz.Principal{
 		SubjectID:   7,
-		Permissions: []string{"*:*:*"},
+		Permissions: []string{llmauthz.PermissionSet.Code(goauthz.PermissionActionRead)},
 	})
 	called := false
 
-	err := AdminOnlyMiddleware()(ctx, func() error {
+	err := ReadPermissionMiddleware()(ctx, func() error {
+		called = true
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("expected success, got %v", err)
+	}
+	if !called {
+		t.Fatal("next handler should be called")
+	}
+}
+
+func TestWritePermissionMiddlewareAllowsWildcardAdmin(t *testing.T) {
+	ctx := newLLMAdminContext(t, goauthz.Principal{
+		SubjectID:   7,
+		Permissions: []string{goauthz.PermissionCode("*:*:*").Code},
+	})
+	called := false
+
+	err := WritePermissionMiddleware()(ctx, func() error {
 		called = true
 		return nil
 	})

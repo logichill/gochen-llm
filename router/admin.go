@@ -54,20 +54,22 @@ func NewLLMAdminRoutes(manager service.IProviderManager, safety repo.ISafetyPoli
 
 // RegisterRoutes 注册路由集合。
 func (r *LLMAdminRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
-	admin := group.Group("/admin")
-	admin.Use(AdminOnlyMiddleware())
+	read := group.Group("/admin")
+	read.Use(ReadPermissionMiddleware())
+	read.GET("/llm/config", r.getLLMConfig)
+	read.GET("/llm/safety", r.getLLMSafetyConfig)
+	read.GET("/llm/security/overview", r.getSecurityOverview)
+	read.GET("/llm/status", r.getLLMStatus)
+	read.GET("/llm/metrics", r.getLLMMetrics)
+	read.GET("/llm/audit", r.listAuditLogs)
 
-	admin.GET("/llm/config", r.getLLMConfig)
-	admin.PUT("/llm/config", r.updateLLMConfig)
-	admin.PUT("/llm/pricing", r.updatePricing)
-	admin.POST("/llm/reload", r.reloadLLMConfig)
-	admin.GET("/llm/safety", r.getLLMSafetyConfig)
-	admin.PUT("/llm/safety", r.updateLLMSafetyConfig)
-	admin.GET("/llm/security/overview", r.getSecurityOverview)
-	admin.GET("/llm/status", r.getLLMStatus)
-	admin.GET("/llm/metrics", r.getLLMMetrics)
-	admin.POST("/llm/metrics/convert", r.markConversion)
-	admin.GET("/llm/audit", r.listAuditLogs)
+	write := group.Group("/admin")
+	write.Use(WritePermissionMiddleware())
+	write.PUT("/llm/config", r.updateLLMConfig)
+	write.PUT("/llm/pricing", r.updatePricing)
+	write.POST("/llm/reload", r.reloadLLMConfig)
+	write.PUT("/llm/safety", r.updateLLMSafetyConfig)
+	write.POST("/llm/metrics/convert", r.markConversion)
 	return nil
 }
 

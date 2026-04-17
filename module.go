@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 
+	llmauthz "gochen-llm/moduleauthz"
 	"gochen-llm/repo"
 	"gochen-llm/router"
 	"gochen-llm/service"
@@ -15,6 +16,7 @@ func NewModule() (server.IModule, error) {
 	return boot.BuildModule(
 		boot.Module("llm").
 			Name("LLM").
+			PermissionDefinitions(llmauthz.PermissionDefinitions()...).
 			Provide(
 				// Repos
 				repo.NewProviderConfigRepo,
