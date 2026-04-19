@@ -1,36 +1,36 @@
 package moduleauthz
 
 import (
-	goauthz "gochen/authz"
-	authzhttp "gochen/authzhttp"
+	"gochen/auth"
+	authhttp "gochen/auth/http"
 	"gochen/httpx"
 )
 
 var (
-	ReadPermission = goauthz.APIPermission("llm", goauthz.PermissionActionRead).
+	ReadPermission = auth.APIPermission("llm", auth.PermissionActionRead).
 			Label("LLM Read").
 			Desc("View LLM configuration, status, metrics, and audit data.").
-			Scope(goauthz.PermissionScopePlatform, goauthz.PermissionScopeTenant).
-			Risk(goauthz.PermissionRiskMedium)
-	WritePermission = goauthz.APIPermission("llm", goauthz.PermissionActionWrite).
+			Scope(auth.PermissionScopePlatform, auth.PermissionScopeTenant).
+			Risk(auth.PermissionRiskMedium)
+	WritePermission = auth.APIPermission("llm", auth.PermissionActionWrite).
 			Label("LLM Write").
 			Desc("Manage LLM configuration, pricing, safety policy, and operational actions.").
-			Scope(goauthz.PermissionScopePlatform, goauthz.PermissionScopeTenant).
-			Risk(goauthz.PermissionRiskHigh)
-	PermissionSet = goauthz.NewPermissionSet(
+			Scope(auth.PermissionScopePlatform, auth.PermissionScopeTenant).
+			Risk(auth.PermissionRiskHigh)
+	PermissionSet = auth.NewPermissionSet(
 		ReadPermission,
 		WritePermission,
 	)
 )
 
-func PermissionDefinitions() []goauthz.PermissionDefinition {
-	return goauthz.PermissionDefinitions(ReadPermission, WritePermission)
+func PermissionDefinitions() []auth.PermissionDefinition {
+	return auth.PermissionDefinitions(ReadPermission, WritePermission)
 }
 
 func ReadMiddleware() httpx.Middleware {
-	return authzhttp.PermissionMiddleware(PermissionSet.Must(goauthz.PermissionActionRead))
+	return authhttp.PermissionMiddleware(PermissionSet.Must(auth.PermissionActionRead))
 }
 
 func WriteMiddleware() httpx.Middleware {
-	return authzhttp.PermissionMiddleware(PermissionSet.Must(goauthz.PermissionActionWrite))
+	return authhttp.PermissionMiddleware(PermissionSet.Must(auth.PermissionActionWrite))
 }

@@ -5,7 +5,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/db/orm"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // IABTestRepository 负责提示词 A/B 测试持久化。
@@ -32,10 +32,10 @@ func NewABTestRepo(o orm.IOrm) IABTestRepository {
 func (r *abTestRepoImpl) Save(ctx context.Context, test *entity.ABTest) error {
 	model, err := r.abTestModel.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 A/B 测试 model 失败")
+		return errors.Wrap(err, errors.Database, "创建 A/B 测试 model 失败")
 	}
 	if err := model.Create(ctx, test); err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 A/B 测试失败")
+		return errors.Wrap(err, errors.Database, "创建 A/B 测试失败")
 	}
 	return nil
 }
@@ -44,7 +44,7 @@ func (r *abTestRepoImpl) Save(ctx context.Context, test *entity.ABTest) error {
 func (r *abTestRepoImpl) Update(ctx context.Context, test *entity.ABTest) error {
 	model, err := r.abTestModel.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 A/B 测试 model 失败")
+		return errors.Wrap(err, errors.Database, "创建 A/B 测试 model 失败")
 	}
 	if err := model.UpdateValues(ctx, map[string]any{
 		"status":        test.Status,
@@ -52,7 +52,7 @@ func (r *abTestRepoImpl) Update(ctx context.Context, test *entity.ABTest) error 
 		"result_json":   test.ResultJSON,
 		"end_at":        test.EndAt,
 	}, orm.WithWhere("id = ?", test.ID)); err != nil {
-		return errorx.Wrap(err, errorx.Database, "更新 A/B 测试失败")
+		return errors.Wrap(err, errors.Database, "更新 A/B 测试失败")
 	}
 	return nil
 }
@@ -62,14 +62,14 @@ func (r *abTestRepoImpl) Get(ctx context.Context, id int64) (*entity.ABTest, err
 	var test entity.ABTest
 	model, err := r.abTestModel.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建 A/B 测试 model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建 A/B 测试 model 失败")
 	}
 	err = model.First(ctx, &test, orm.WithWhere("id = ?", id))
 	if err != nil {
-		if errorx.Is(err, errorx.NotFound) {
+		if errors.Is(err, errors.NotFound) {
 			return nil, nil
 		}
-		return nil, errorx.Wrap(err, errorx.Database, "查询 A/B 测试失败")
+		return nil, errors.Wrap(err, errors.Database, "查询 A/B 测试失败")
 	}
 	return &test, nil
 }

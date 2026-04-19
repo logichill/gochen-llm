@@ -3,47 +3,47 @@ package client
 import (
 	"fmt"
 
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // newClientConfigError 创建客户端配置错误。
 func newClientConfigError(message string) error {
-	return errorx.New(errorx.Internal, message)
+	return errors.NewCode(errors.Internal, message)
 }
 
 // wrapClientInternal 包装客户端Internal。
 func wrapClientInternal(err error, message string) error {
-	return errorx.Wrap(err, errorx.Internal, message)
+	return errors.Wrap(err, errors.Internal, message)
 }
 
 // wrapClientNetwork 包装客户端Network。
 func wrapClientNetwork(err error, message string) error {
-	return errorx.Wrap(err, errorx.Network, message)
+	return errors.Wrap(err, errors.Network, message)
 }
 
 // newUpstreamStatusError 创建Upstream状态错误。
 func newUpstreamStatusError(provider string, statusCode int, body []byte) error {
 	message := fmt.Sprintf("%s 上游响应错误", provider)
-	errCode := errorx.ServiceUnavailable
+	errCode := errors.ServiceUnavailable
 	switch {
 	case statusCode == 408:
-		errCode = errorx.Timeout
+		errCode = errors.Timeout
 	case statusCode == 429:
-		errCode = errorx.TooManyRequests
+		errCode = errors.TooManyRequests
 	case statusCode == 401:
-		errCode = errorx.Unauthorized
+		errCode = errors.Unauthorized
 	case statusCode == 403:
-		errCode = errorx.Forbidden
+		errCode = errors.Forbidden
 	case statusCode == 404:
-		errCode = errorx.NotFound
+		errCode = errors.NotFound
 	case statusCode == 409:
-		errCode = errorx.Conflict
+		errCode = errors.Conflict
 	case statusCode == 422:
-		errCode = errorx.Validation
+		errCode = errors.Validation
 	case statusCode >= 400 && statusCode < 500:
-		errCode = errorx.InvalidInput
+		errCode = errors.InvalidInput
 	}
-	return errorx.New(errCode, message).
+	return errors.NewCode(errCode, message).
 		WithContext("provider", provider).
 		WithContext("upstream_status", statusCode).
 		WithContext("body", string(body))

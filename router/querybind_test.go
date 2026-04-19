@@ -4,34 +4,34 @@ import (
 	"testing"
 	"time"
 
-	dataquery "gochen/db/query"
+	"gochen/db/query"
 )
 
 func TestDecodeMetricsFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 	start := time.Now().UTC().Round(0)
 	end := start.Add(2 * time.Hour)
 
-	filter, err := decodeMetricsFilter(dataquery.QueryFilters{
+	filter, err := decodeMetricsFilter(query.QueryFilters{
 		"provider": {{
-			Op:    dataquery.FilterOpEq,
-			Value: dataquery.StringValue("openai"),
+			Op:    query.FilterOpEq,
+			Value: query.StringValue("openai"),
 		}},
 		"ab_test_id": {{
-			Op:    dataquery.FilterOpEq,
-			Value: dataquery.IntValue(7),
+			Op:    query.FilterOpEq,
+			Value: query.IntValue(7),
 		}},
 		"user_id": {{
-			Op:    dataquery.FilterOpEq,
-			Value: dataquery.IntValue(11),
+			Op:    query.FilterOpEq,
+			Value: query.IntValue(11),
 		}},
 		"created_at": {
 			{
-				Op:    dataquery.FilterOpGte,
-				Value: dataquery.TimeValue(start),
+				Op:    query.FilterOpGte,
+				Value: query.TimeValue(start),
 			},
 			{
-				Op:    dataquery.FilterOpLte,
-				Value: dataquery.TimeValue(end),
+				Op:    query.FilterOpLte,
+				Value: query.TimeValue(end),
 			},
 		},
 	})
@@ -59,18 +59,18 @@ func TestDecodeMetricsFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 func TestDecodeAuditLogFilter_UsesDefaultBindingForInitialisms(t *testing.T) {
 	start := time.Now().UTC().Round(0)
 
-	filter, err := decodeAuditLogFilter(dataquery.QueryFilters{
+	filter, err := decodeAuditLogFilter(query.QueryFilters{
 		"user_id": {{
-			Op:    dataquery.FilterOpEq,
-			Value: dataquery.IntValue(99),
+			Op:    query.FilterOpEq,
+			Value: query.IntValue(99),
 		}},
 		"resource_type": {{
-			Op:    dataquery.FilterOpEq,
-			Value: dataquery.StringValue("prompt"),
+			Op:    query.FilterOpEq,
+			Value: query.StringValue("prompt"),
 		}},
 		"created_at": {{
-			Op:    dataquery.FilterOpGte,
-			Value: dataquery.TimeValue(start),
+			Op:    query.FilterOpGte,
+			Value: query.TimeValue(start),
 		}},
 	})
 	if err != nil {

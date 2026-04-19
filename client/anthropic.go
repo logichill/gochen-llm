@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type anthropicClient struct {
@@ -45,7 +45,7 @@ type anthropicChatResponse struct {
 // Chat 发起对话请求。
 func (c *anthropicClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if ctx == nil {
-		return nil, errorx.New(errorx.InvalidInput, "ctx is nil")
+		return nil, errors.NewCode(errors.InvalidInput, "ctx is nil")
 	}
 	if c.cfg.APIKey == "" {
 		return nil, newClientConfigError("anthropic API key 未配置")
@@ -121,7 +121,7 @@ func (c *anthropicClient) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 		return nil, wrapClientInternal(err, "解析 Anthropic 响应失败")
 	}
 	if len(ar.Content) == 0 {
-		return nil, errorx.New(errorx.Internal, "anthropic 响应中不包含内容")
+		return nil, errors.NewCode(errors.Internal, "anthropic 响应中不包含内容")
 	}
 	return &ChatResponse{Content: ar.Content[0].Text}, nil
 }

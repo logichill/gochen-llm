@@ -5,7 +5,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/db/orm"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // IProviderConfigRepo 管理多源 LLM 端点配置
@@ -36,13 +36,13 @@ func (r *providerConfigRepoImpl) ListAll(ctx context.Context) ([]*entity.Provide
 	var cfgs []*entity.ProviderConfig
 	model, err := r.model.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建 LLM provider model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建 LLM provider model 失败")
 	}
 	if err := model.Find(ctx, &cfgs,
 		orm.WithOrderBy("priority", false),
 		orm.WithOrderBy("id", false),
 	); err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "查询 LLM provider 配置失败")
+		return nil, errors.Wrap(err, errors.Database, "查询 LLM provider 配置失败")
 	}
 	return cfgs, nil
 }
@@ -51,7 +51,7 @@ func (r *providerConfigRepoImpl) ListAll(ctx context.Context) ([]*entity.Provide
 func (r *providerConfigRepoImpl) ReplaceAll(ctx context.Context, configs []*entity.ProviderConfig) error {
 	session, err := r.orm.Begin(ctx)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "开启 LLM provider 配置事务失败")
+		return errors.Wrap(err, errors.Database, "开启 LLM provider 配置事务失败")
 	}
 	committed := false
 	defer func() {
@@ -62,21 +62,21 @@ func (r *providerConfigRepoImpl) ReplaceAll(ctx context.Context, configs []*enti
 
 	model, err := r.model.model(session)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 LLM provider model 失败")
+		return errors.Wrap(err, errors.Database, "创建 LLM provider model 失败")
 	}
 
 	if err := model.Delete(ctx, orm.WithWhere("1 = 1")); err != nil {
-		return errorx.Wrap(err, errorx.Database, "清空 LLM provider 配置失败")
+		return errors.Wrap(err, errors.Database, "清空 LLM provider 配置失败")
 	}
 
 	if len(configs) > 0 {
 		if err := model.Create(ctx, anyPtrSlice(configs)...); err != nil {
-			return errorx.Wrap(err, errorx.Database, "批量保存 LLM provider 配置失败")
+			return errors.Wrap(err, errors.Database, "批量保存 LLM provider 配置失败")
 		}
 	}
 
 	if err := session.Commit(); err != nil {
-		return errorx.Wrap(err, errorx.Database, "提交 LLM provider 配置事务失败")
+		return errors.Wrap(err, errors.Database, "提交 LLM provider 配置事务失败")
 	}
 	committed = true
 	return nil
@@ -89,7 +89,7 @@ func (r *providerConfigRepoImpl) UpdatePricing(ctx context.Context, updates []en
 	}
 	session, err := r.orm.Begin(ctx)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "开启更新 LLM 单价事务失败")
+		return errors.Wrap(err, errors.Database, "开启更新 LLM 单价事务失败")
 	}
 	committed := false
 	defer func() {
@@ -100,15 +100,15 @@ func (r *providerConfigRepoImpl) UpdatePricing(ctx context.Context, updates []en
 
 	model, err := r.model.model(session)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 LLM provider model 失败")
+		return errors.Wrap(err, errors.Database, "创建 LLM provider model 失败")
 	}
 
 	for _, up := range updates {
 		if up.ID <= 0 {
-			return errorx.New(errorx.InvalidInput, "pricing id 无效")
+			return errors.NewCode(errors.InvalidInput, "pricing id 无效")
 		}
 		if up.InputPricePer1k < 0 || up.OutputPricePer1k < 0 {
-			return errorx.New(errorx.Validation, "单价不能为负数")
+			return errors.NewCode(errors.Validation, "单价不能为负数")
 		}
 
 		updateValues := map[string]any{
@@ -116,12 +116,12 @@ func (r *providerConfigRepoImpl) UpdatePricing(ctx context.Context, updates []en
 			"output_price_per_1k": up.OutputPricePer1k,
 		}
 		if err := model.UpdateValues(ctx, updateValues, orm.WithWhere("id = ?", up.ID)); err != nil {
-			return errorx.Wrap(err, errorx.Database, "更新 LLM 单价失败")
+			return errors.Wrap(err, errors.Database, "更新 LLM 单价失败")
 		}
 	}
 
 	if err := session.Commit(); err != nil {
-		return errorx.Wrap(err, errorx.Database, "提交更新 LLM 单价事务失败")
+		return errors.Wrap(err, errors.Database, "提交更新 LLM 单价事务失败")
 	}
 	committed = true
 	return nil

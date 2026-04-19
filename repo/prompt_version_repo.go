@@ -5,7 +5,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/db/orm"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // IPromptVersionRepository 负责提示词版本记录持久化。
@@ -31,10 +31,10 @@ func NewPromptVersionRepo(o orm.IOrm) IPromptVersionRepository {
 func (r *promptVersionRepoImpl) Save(ctx context.Context, version *entity.PromptVersion) error {
 	model, err := r.versionModel.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建提示词版本 model 失败")
+		return errors.Wrap(err, errors.Database, "创建提示词版本 model 失败")
 	}
 	if err := model.Create(ctx, version); err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建提示词版本失败")
+		return errors.Wrap(err, errors.Database, "创建提示词版本失败")
 	}
 	return nil
 }
@@ -44,14 +44,14 @@ func (r *promptVersionRepoImpl) Get(ctx context.Context, templateID int64, versi
 	var v entity.PromptVersion
 	model, err := r.versionModel.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建提示词版本 model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建提示词版本 model 失败")
 	}
 	err = model.First(ctx, &v, orm.WithWhere("template_id = ? AND version = ?", templateID, version))
 	if err != nil {
-		if errorx.Is(err, errorx.NotFound) {
+		if errors.Is(err, errors.NotFound) {
 			return nil, nil
 		}
-		return nil, errorx.Wrap(err, errorx.Database, "查询提示词版本失败")
+		return nil, errors.Wrap(err, errors.Database, "查询提示词版本失败")
 	}
 	return &v, nil
 }

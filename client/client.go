@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // Provider 定义提供者。
@@ -56,7 +56,7 @@ type IClient interface {
 // NewClient 创建客户端。
 func NewClient(cfg *Config) (IClient, error) {
 	if cfg == nil || cfg.Provider == "" {
-		return nil, errorx.New(errorx.InvalidInput, "llm.Config 不能为空且 provider 必须设置")
+		return nil, errors.NewCode(errors.InvalidInput, "llm.Config 不能为空且 provider 必须设置")
 	}
 	switch cfg.Provider {
 	case ProviderOpenAI, ProviderOpenAICompatible:
@@ -68,6 +68,6 @@ func NewClient(cfg *Config) (IClient, error) {
 	case ProviderMock:
 		return &mockClient{}, nil
 	default:
-		return nil, errorx.New(errorx.Unsupported, "不支持的 LLM provider").WithContext("provider", string(cfg.Provider))
+		return nil, errors.NewCode(errors.Unsupported, "不支持的 LLM provider").WithContext("provider", string(cfg.Provider))
 	}
 }

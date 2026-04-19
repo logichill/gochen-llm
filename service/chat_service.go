@@ -11,7 +11,7 @@ import (
 	"gochen-llm/client"
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errorx"
+	"gochen/errors"
 	runtime "gochen/task"
 )
 
@@ -45,10 +45,10 @@ func NewChatService(manager IProviderManager, prompt IPromptService, safety ISaf
 // Chat 发起对话请求。
 func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResponse, error) {
 	if req == nil {
-		return nil, errorx.New(errorx.InvalidInput, "ChatRequest 不能为空")
+		return nil, errors.NewCode(errors.InvalidInput, "ChatRequest 不能为空")
 	}
 	if s.manager == nil {
-		return nil, errorx.New(errorx.Internal, "LLM ProviderManager 未配置")
+		return nil, errors.NewCode(errors.Internal, "LLM ProviderManager 未配置")
 	}
 
 	// 安全策略：输入验证与系统提示拼接
@@ -124,7 +124,7 @@ func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 	}
 
 	if execResult == nil || execResult.Response == nil {
-		return nil, errorx.New(errorx.Internal, "LLM 调用未返回响应")
+		return nil, errors.NewCode(errors.Internal, "LLM 调用未返回响应")
 	}
 
 	content := execResult.Response.Content
@@ -201,10 +201,10 @@ func (s *chatServiceImpl) Chat(ctx context.Context, req *ChatRequest) (*ChatResp
 // ChatWithPrompt 为带提示词发起对话请求。
 func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatRequest) (*ChatResponse, error) {
 	if req == nil {
-		return nil, errorx.New(errorx.InvalidInput, "PromptChatRequest 不能为空")
+		return nil, errors.NewCode(errors.InvalidInput, "PromptChatRequest 不能为空")
 	}
 	if s.prompt == nil {
-		return nil, errorx.New(errorx.Internal, "PromptService 未配置")
+		return nil, errors.NewCode(errors.Internal, "PromptService 未配置")
 	}
 
 	tmpl, err := s.prompt.FindPrompt(ctx, req.PromptName, req.PromptScope, req.PromptScopeID)
@@ -212,7 +212,7 @@ func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatReq
 		return nil, err
 	}
 	if tmpl == nil {
-		return nil, errorx.New(errorx.NotFound, "提示词不存在")
+		return nil, errors.NewCode(errors.NotFound, "提示词不存在")
 	}
 
 	// A/B 分配（可选）
@@ -265,7 +265,7 @@ func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatReq
 // StreamChat 处理Stream对话。
 func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-chan *ChatChunk, error) {
 	if req == nil {
-		return nil, errorx.New(errorx.InvalidInput, "ChatRequest 不能为空")
+		return nil, errors.NewCode(errors.InvalidInput, "ChatRequest 不能为空")
 	}
 
 	ch := make(chan *ChatChunk, 8)
@@ -412,7 +412,7 @@ func errorLabel(err error) string {
 	if err == nil {
 		return ""
 	}
-	if code := errorx.Code(err); code != "" {
+	if code := errors.Code(err); code != "" {
 		return string(code)
 	}
 	return err.Error()

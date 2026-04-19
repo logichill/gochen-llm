@@ -23,4 +23,4 @@
 
 ## 排障约定
 
-- 客户端上游 HTTP 错误会在 `errorx` 上下文里保留真实 `provider`（例如 `openai`、`openai_compatible`、`gemini`、`anthropic`），便于多 provider fallback 下的日志、指标与告警排查。
+- 客户端上游 HTTP 错误会在 `errors` 上下文里保留真实 `provider`（例如 `openai`、`openai_compatible`、`gemini`、`anthropic`），便于多 provider fallback 下的日志、指标与告警排查。

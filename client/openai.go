@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type openAIClient struct {
@@ -75,7 +75,7 @@ func (c *openAIClient) Chat(ctx context.Context, req *ChatRequest) (*ChatRespons
 			return nil, wrapClientInternal(err, "解析 OpenAI 响应失败")
 		}
 		if len(resp.Choices) == 0 {
-			return nil, errorx.New(errorx.Internal, "OpenAI 响应中不包含 choices")
+			return nil, errors.NewCode(errors.Internal, "OpenAI 响应中不包含 choices")
 		}
 		return &ChatResponse{Content: resp.Choices[0].Message.Content}, nil
 	})

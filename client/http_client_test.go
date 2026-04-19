@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 func TestHTTPClient_DoRequest_NilContext(t *testing.T) {
@@ -18,7 +18,7 @@ func TestHTTPClient_DoRequest_NilContext(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if !errorx.Is(err, errorx.InvalidInput) {
+	if !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected InvalidInput, got %v", err)
 	}
 }
@@ -37,10 +37,10 @@ func TestHTTPClient_DoRequest_HTTPStatusMappedToErrorCode(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if !errorx.Is(err, errorx.TooManyRequests) {
+	if !errors.Is(err, errors.TooManyRequests) {
 		t.Fatalf("expected TooManyRequests, got %v", err)
 	}
-	appErr, ok := err.(*errorx.AppError)
+	appErr, ok := err.(*errors.AppError)
 	if !ok {
 		t.Fatalf("expected AppError, got %T", err)
 	}
@@ -58,7 +58,7 @@ func TestOpenAIClient_Chat_MissingAPIKey(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if !errorx.Is(err, errorx.Internal) {
+	if !errors.Is(err, errors.Internal) {
 		t.Fatalf("expected Internal, got %v", err)
 	}
 }
@@ -69,7 +69,7 @@ func TestGeminiClient_Chat_MissingAPIKey(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if !errorx.Is(err, errorx.Internal) {
+	if !errors.Is(err, errors.Internal) {
 		t.Fatalf("expected Internal, got %v", err)
 	}
 }
@@ -80,19 +80,19 @@ func TestAnthropicClient_Chat_MissingAPIKey(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error, got nil")
 	}
-	if !errorx.Is(err, errorx.Internal) {
+	if !errors.Is(err, errors.Internal) {
 		t.Fatalf("expected Internal, got %v", err)
 	}
 }
 
 func TestNewClient_ValidationAndUnsupported(t *testing.T) {
-	if _, err := NewClient(nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if _, err := NewClient(nil); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected InvalidInput for nil config, got %v", err)
 	}
-	if _, err := NewClient(&Config{}); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if _, err := NewClient(&Config{}); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected InvalidInput for empty provider, got %v", err)
 	}
-	if _, err := NewClient(&Config{Provider: Provider("bad")}); err == nil || !errorx.Is(err, errorx.Unsupported) {
+	if _, err := NewClient(&Config{Provider: Provider("bad")}); err == nil || !errors.Is(err, errors.Unsupported) {
 		t.Fatalf("expected Unsupported for bad provider, got %v", err)
 	}
 }
@@ -100,12 +100,12 @@ func TestNewClient_ValidationAndUnsupported(t *testing.T) {
 func TestHTTPClient_DoRequest_Upstream4xxErrorsKeepDeterministicCodes(t *testing.T) {
 	tests := []struct {
 		status int
-		code   errorx.ErrorCode
+		code   errors.ErrorCode
 	}{
-		{status: http.StatusBadRequest, code: errorx.InvalidInput},
-		{status: http.StatusUnauthorized, code: errorx.Unauthorized},
-		{status: http.StatusForbidden, code: errorx.Forbidden},
-		{status: http.StatusNotFound, code: errorx.NotFound},
+		{status: http.StatusBadRequest, code: errors.InvalidInput},
+		{status: http.StatusUnauthorized, code: errors.Unauthorized},
+		{status: http.StatusForbidden, code: errors.Forbidden},
+		{status: http.StatusNotFound, code: errors.NotFound},
 	}
 
 	for _, tt := range tests {
@@ -123,7 +123,7 @@ func TestHTTPClient_DoRequest_Upstream4xxErrorsKeepDeterministicCodes(t *testing
 			if err == nil {
 				t.Fatalf("expected error, got nil")
 			}
-			if !errorx.Is(err, tt.code) {
+			if !errors.Is(err, tt.code) {
 				t.Fatalf("expected %s, got %v", tt.code, err)
 			}
 		})

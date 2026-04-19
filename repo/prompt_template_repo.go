@@ -6,9 +6,9 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/db/orm"
-	ormrepo "gochen/db/orm/repo"
+	"gochen/db/orm/repo"
 	domaincrud "gochen/domain/crud"
-	"gochen/errorx"
+	"gochen/errors"
 	"gochen/ident"
 )
 
@@ -30,17 +30,17 @@ type IPromptTemplateRepository interface {
 }
 
 type promptTemplateRepoImpl struct {
-	*ormrepo.Repo[*entity.PromptTemplate, int64]
+	*repo.Repo[*entity.PromptTemplate, int64]
 	orm           orm.IOrm
 	templateModel ormModel
 }
 
 // NewPromptTemplateRepo 创建提示词Template仓储。
 func NewPromptTemplateRepo(o orm.IOrm) (IPromptTemplateRepository, error) {
-	base, err := ormrepo.NewRepo[*entity.PromptTemplate, int64](
+	base, err := repo.NewRepo[*entity.PromptTemplate, int64](
 		o,
 		(entity.PromptTemplate{}).TableName(),
-		ormrepo.WithIDGenerator[*entity.PromptTemplate, int64](ident.DefaultInt64Generator()),
+		repo.WithIDGenerator[*entity.PromptTemplate, int64](ident.DefaultInt64Generator()),
 	)
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func NewPromptTemplateRepo(o orm.IOrm) (IPromptTemplateRepository, error) {
 func (r *promptTemplateRepoImpl) Get(ctx context.Context, id int64) (*entity.PromptTemplate, error) {
 	tmpl, err := r.Repo.Get(ctx, id)
 	if err != nil {
-		if errorx.Is(err, errorx.NotFound) {
+		if errors.Is(err, errors.NotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -68,7 +68,7 @@ func (r *promptTemplateRepoImpl) Get(ctx context.Context, id int64) (*entity.Pro
 func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.PromptTemplate) error {
 	session, err := r.orm.Begin(ctx)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "开启提示词模板事务失败")
+		return errors.Wrap(err, errors.Database, "开启提示词模板事务失败")
 	}
 	committed := false
 	defer func() {
@@ -79,7 +79,7 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 
 	model, err := r.templateModel.model(session)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建提示词模板 model 失败")
+		return errors.Wrap(err, errors.Database, "创建提示词模板 model 失败")
 	}
 
 	var existing entity.PromptTemplate
@@ -87,16 +87,16 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 		orm.WithWhere("name = ? AND scope = ? AND scope_id = ?", tmpl.Name, tmpl.Scope, tmpl.ScopeID),
 		orm.WithForUpdate(),
 	)
-	if err != nil && !errorx.Is(err, errorx.NotFound) {
-		return errorx.Wrap(err, errorx.Database, "查询提示词模板失败")
+	if err != nil && !errors.Is(err, errors.NotFound) {
+		return errors.Wrap(err, errors.Database, "查询提示词模板失败")
 	}
 
-	if errorx.Is(err, errorx.NotFound) {
+	if errors.Is(err, errors.NotFound) {
 		if tmpl.Version <= 0 {
 			tmpl.Version = 1
 		}
 		if err := model.Create(ctx, tmpl); err != nil {
-			return errorx.Wrap(err, errorx.Database, "创建提示词模板失败")
+			return errors.Wrap(err, errors.Database, "创建提示词模板失败")
 		}
 	} else {
 		tmpl.ID = existing.ID
@@ -115,12 +115,12 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 			"metadata_json":  tmpl.MetadataJSON,
 		}
 		if err := model.UpdateValues(ctx, updateValues, orm.WithWhere("id = ?", existing.ID)); err != nil {
-			return errorx.Wrap(err, errorx.Database, "更新提示词模板失败")
+			return errors.Wrap(err, errors.Database, "更新提示词模板失败")
 		}
 	}
 
 	if err := session.Commit(); err != nil {
-		return errorx.Wrap(err, errorx.Database, "提交提示词模板事务失败")
+		return errors.Wrap(err, errors.Database, "提交提示词模板事务失败")
 	}
 	committed = true
 	return nil
@@ -130,7 +130,7 @@ func (r *promptTemplateRepoImpl) Upsert(ctx context.Context, tmpl *entity.Prompt
 func (r *promptTemplateRepoImpl) FindEffective(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error) {
 	model, err := r.templateModel.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建提示词模板 model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建提示词模板 model 失败")
 	}
 	var templates []*entity.PromptTemplate
 	err = model.Find(ctx, &templates,
@@ -138,7 +138,7 @@ func (r *promptTemplateRepoImpl) FindEffective(ctx context.Context, name string,
 		orm.WithWhere("(scope = ? AND scope_id = 0) OR (scope = ? AND scope_id = ?)", entity.PromptScopeGlobal, scope, scopeID),
 	)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "查询生效提示词模板失败")
+		return nil, errors.Wrap(err, errors.Database, "查询生效提示词模板失败")
 	}
 	if len(templates) == 0 {
 		return nil, nil

@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"gochen/errorx"
+	"gochen/errors"
 	"gochen/httpx"
 )
 
@@ -33,6 +33,6 @@ func rejectLegacyJSONFields(ctx httpx.IContext, keys ...string) error {
 		return nil
 	}
 	sort.Strings(found)
-	return errorx.New(errorx.InvalidInput, "legacy json fields are no longer supported; use the typed contract").
+	return errors.NewCode(errors.InvalidInput, "legacy json fields are no longer supported; use the typed contract").
 		WithContext("legacy_fields", strings.Join(found, ","))
 }

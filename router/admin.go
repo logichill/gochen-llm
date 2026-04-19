@@ -7,19 +7,19 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/service"
 	restapi "gochen/api/restapi"
-	dataquery "gochen/db/query"
+	"gochen/db/query"
 	"gochen/db/query/querybind"
-	"gochen/errorx"
+	"gochen/errors"
 	"gochen/httpx"
 	hbasic "gochen/httpx/nethttp"
 )
 
 type llmAuditLogQueryFields struct {
-	UserID       *int64                     `query:"field=user_id,ops=eq"`
-	Action       string                     `query:"type=enum,ops=eq"`
-	Status       string                     `query:"type=enum,ops=eq"`
-	ResourceType string                     `query:"field=resource_type,type=enum,ops=eq"`
-	CreatedAt    dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
+	UserID       *int64                 `query:"field=user_id,ops=eq"`
+	Action       string                 `query:"type=enum,ops=eq"`
+	Status       string                 `query:"type=enum,ops=eq"`
+	ResourceType string                 `query:"field=resource_type,type=enum,ops=eq"`
+	CreatedAt    query.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
 var llmAuditLogQueryContract = querybind.MustNewContract[llmAuditLogQueryFields](nil)
@@ -86,7 +86,7 @@ func (r *LLMAdminRoutes) Priority() int {
 // getLLMConfig 返回LLM配置。
 func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM manager 未配置")
 	}
 
 	cfgs, err := r.manager.ListEffectiveConfigs(ctx.RequestContext())
@@ -102,7 +102,7 @@ func (r *LLMAdminRoutes) getLLMConfig(ctx httpx.IContext) error {
 // updateLLMConfig 更新LLM配置。
 func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM manager 未配置")
 	}
 
 	var body struct {
@@ -126,7 +126,7 @@ func (r *LLMAdminRoutes) updateLLMConfig(ctx httpx.IContext) error {
 // updatePricing 更新定价。
 func (r *LLMAdminRoutes) updatePricing(ctx httpx.IContext) error {
 	if r.cfgRepo == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM config repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM config repo 未配置")
 	}
 	var body struct {
 		Pricing []entity.ProviderPricing `json:"pricing"`
@@ -135,7 +135,7 @@ func (r *LLMAdminRoutes) updatePricing(ctx httpx.IContext) error {
 		return httpx.WriteError(ctx, err)
 	}
 	if len(body.Pricing) == 0 {
-		return httpx.WriteErrorCode(ctx, errorx.InvalidInput, "pricing 不能为空")
+		return httpx.WriteErrorCode(ctx, errors.InvalidInput, "pricing 不能为空")
 	}
 	for _, p := range body.Pricing {
 		if err := r.validatePricing(p); err != nil {
@@ -154,7 +154,7 @@ func (r *LLMAdminRoutes) updatePricing(ctx httpx.IContext) error {
 // reloadLLMConfig 处理reloadLLM配置。
 func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IContext) error {
 	if r.manager == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM manager 未配置")
 	}
 
 	if err := r.manager.Reload(ctx.RequestContext()); err != nil {
@@ -167,7 +167,7 @@ func (r *LLMAdminRoutes) reloadLLMConfig(ctx httpx.IContext) error {
 // getLLMSafetyConfig 返回LLM安全配置。
 func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM safety repo 未配置")
 	}
 
 	cfg, err := r.safetyRepo.FindActive(ctx.RequestContext())
@@ -182,7 +182,7 @@ func (r *LLMAdminRoutes) getLLMSafetyConfig(ctx httpx.IContext) error {
 // updateLLMSafetyConfig 更新LLM安全配置。
 func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM safety repo 未配置")
 	}
 
 	var body struct {
@@ -192,7 +192,7 @@ func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IContext) error {
 		return httpx.WriteError(ctx, err)
 	}
 	if body.Config == nil {
-		return httpx.WriteErrorCode(ctx, errorx.InvalidInput, "config 不能为空")
+		return httpx.WriteErrorCode(ctx, errors.InvalidInput, "config 不能为空")
 	}
 
 	cfg := &entity.SafetyPolicy{
@@ -214,7 +214,7 @@ func (r *LLMAdminRoutes) updateLLMSafetyConfig(ctx httpx.IContext) error {
 // getLLMStatus 返回LLM状态。
 func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IContext) error {
 	if r.manager == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM manager 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM manager 未配置")
 	}
 
 	status, err := r.manager.ListStatus(ctx.RequestContext())
@@ -230,7 +230,7 @@ func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IContext) error {
 // getLLMMetrics 返回LLM指标。
 func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
 	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
@@ -269,7 +269,7 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	})
 }
 
-func decodeAuditLogFilter(filters dataquery.QueryFilters) (repo.AuditLogFilter, error) {
+func decodeAuditLogFilter(filters query.QueryFilters) (repo.AuditLogFilter, error) {
 	bound, err := llmAuditLogQueryContract.Decode(filters)
 	if err != nil {
 		return repo.AuditLogFilter{}, err
@@ -287,7 +287,7 @@ func decodeAuditLogFilter(filters dataquery.QueryFilters) (repo.AuditLogFilter, 
 // markConversion 记录一次转化事件（例如 A/B 测试的成功/点击）
 func (r *LLMAdminRoutes) markConversion(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
 	if err := rejectLegacyJSONFields(ctx, "conversion_type"); err != nil {
 		return httpx.WriteError(ctx, err)
@@ -327,7 +327,7 @@ func (r *LLMAdminRoutes) markConversion(ctx httpx.IContext) error {
 // listAuditLogs 列出审计日志列表。
 func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM audit repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM audit repo 未配置")
 	}
 	if err := restapi.RejectLegacyQueryParams(ctx,
 		"user_id", "action", "status", "resource_type", "start", "end", "limit", "offset",
@@ -360,7 +360,7 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 // getSecurityOverview 返回安全概览。
 func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 	if r.safetyRepo == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM safety repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM safety repo 未配置")
 	}
 	policy, err := r.safetyRepo.FindActive(ctx.RequestContext())
 	if err != nil {
@@ -395,13 +395,13 @@ func (r *LLMAdminRoutes) getSecurityOverview(ctx httpx.IContext) error {
 // validatePricing 校验定价。
 func (r *LLMAdminRoutes) validatePricing(p entity.ProviderPricing) error {
 	if p.ID <= 0 {
-		return errorx.New(errorx.InvalidInput, "pricing id 无效")
+		return errors.NewCode(errors.InvalidInput, "pricing id 无效")
 	}
 	if p.InputPricePer1k < 0 || p.OutputPricePer1k < 0 {
-		return errorx.New(errorx.InvalidInput, "单价不能为负数")
+		return errors.NewCode(errors.InvalidInput, "单价不能为负数")
 	}
 	if p.InputPricePer1k > 100 || p.OutputPricePer1k > 100 {
-		return errorx.New(errorx.InvalidInput, "单价超出合理范围，请检查输入")
+		return errors.NewCode(errors.InvalidInput, "单价超出合理范围，请检查输入")
 	}
 	return nil
 }

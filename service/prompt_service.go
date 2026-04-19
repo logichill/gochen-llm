@@ -11,7 +11,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // IPromptService 定义提示词服务能力接口。
@@ -55,18 +55,18 @@ func (s *promptServiceImpl) FindPromptByID(ctx context.Context, id int64) (*enti
 // RenderPrompt 渲染提示词。
 func (s *promptServiceImpl) RenderPrompt(ctx context.Context, tmpl *entity.PromptTemplate, vars map[string]any) (string, error) {
 	if tmpl == nil {
-		return "", errorx.New(errorx.InvalidInput, "模板不能为空")
+		return "", errors.NewCode(errors.InvalidInput, "模板不能为空")
 	}
 	t, err := template.New("prompt").Parse(tmpl.Content)
 	if err != nil {
-		return "", errorx.Wrap(err, errorx.Internal, "解析提示词模板失败")
+		return "", errors.Wrap(err, errors.Internal, "解析提示词模板失败")
 	}
 	var buf bytes.Buffer
 	if vars == nil {
 		vars = map[string]any{}
 	}
 	if err := t.Execute(&buf, vars); err != nil {
-		return "", errorx.Wrap(err, errorx.Internal, "渲染提示词模板失败")
+		return "", errors.Wrap(err, errors.Internal, "渲染提示词模板失败")
 	}
 	return buf.String(), nil
 }
@@ -97,7 +97,7 @@ func (s *promptServiceImpl) ComposePrompts(ctx context.Context, names []string, 
 // SavePrompt 保存提示词。
 func (s *promptServiceImpl) SavePrompt(ctx context.Context, tmpl *entity.PromptTemplate) error {
 	if tmpl == nil {
-		return errorx.New(errorx.InvalidInput, "提示词模板不能为空")
+		return errors.NewCode(errors.InvalidInput, "提示词模板不能为空")
 	}
 	if tmpl.Scope == "" {
 		tmpl.Scope = entity.PromptScopeGlobal
@@ -174,14 +174,14 @@ func (s *promptServiceImpl) listFilteredPrompts(ctx context.Context, filter repo
 // CreateVersion 创建版本。
 func (s *promptServiceImpl) CreateVersion(ctx context.Context, templateID int64, changeLog string) (*entity.PromptVersion, error) {
 	if templateID <= 0 {
-		return nil, errorx.New(errorx.InvalidInput, "templateID 无效")
+		return nil, errors.NewCode(errors.InvalidInput, "templateID 无效")
 	}
 	tmpl, err := s.templates.Get(ctx, templateID)
 	if err != nil {
 		return nil, err
 	}
 	if tmpl == nil {
-		return nil, errorx.New(errorx.NotFound, "提示词模板不存在")
+		return nil, errors.NewCode(errors.NotFound, "提示词模板不存在")
 	}
 
 	newVersion := tmpl.Version + 1
@@ -210,7 +210,7 @@ func (s *promptServiceImpl) CreateVersion(ctx context.Context, templateID int64,
 // RollbackVersion 回滚版本。
 func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int64, version int) error {
 	if templateID <= 0 || version <= 0 {
-		return errorx.New(errorx.InvalidInput, "templateID 或 version 无效")
+		return errors.NewCode(errors.InvalidInput, "templateID 或 version 无效")
 	}
 
 	target, err := s.versions.Get(ctx, templateID, version)
@@ -218,7 +218,7 @@ func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int6
 		return err
 	}
 	if target == nil {
-		return errorx.New(errorx.NotFound, "指定版本不存在")
+		return errors.NewCode(errors.NotFound, "指定版本不存在")
 	}
 
 	tmpl, err := s.templates.Get(ctx, templateID)
@@ -226,7 +226,7 @@ func (s *promptServiceImpl) RollbackVersion(ctx context.Context, templateID int6
 		return err
 	}
 	if tmpl == nil {
-		return errorx.New(errorx.NotFound, "提示词模板不存在")
+		return errors.NewCode(errors.NotFound, "提示词模板不存在")
 	}
 
 	// 回滚内容并创建新的版本记录，便于审计
@@ -262,7 +262,7 @@ func (s *promptServiceImpl) ExportPrompts(ctx context.Context, filter repo.Promp
 func (s *promptServiceImpl) ImportPrompts(ctx context.Context, data []byte) error {
 	var list []*entity.PromptTemplate
 	if err := json.Unmarshal(data, &list); err != nil {
-		return errorx.Wrap(err, errorx.InvalidInput, "解析导入数据失败")
+		return errors.Wrap(err, errors.InvalidInput, "解析导入数据失败")
 	}
 	for _, tmpl := range list {
 		if err := s.SavePrompt(ctx, tmpl); err != nil {
@@ -275,10 +275,10 @@ func (s *promptServiceImpl) ImportPrompts(ctx context.Context, data []byte) erro
 // StartABTest 启动A/B测试。
 func (s *promptServiceImpl) StartABTest(ctx context.Context, test *entity.ABTest) error {
 	if test == nil {
-		return errorx.New(errorx.InvalidInput, "A/B 测试不能为空")
+		return errors.NewCode(errors.InvalidInput, "A/B 测试不能为空")
 	}
 	if test.TemplateAID <= 0 || test.TemplateBID <= 0 {
-		return errorx.New(errorx.Validation, "A/B 测试模板 ID 无效")
+		return errors.NewCode(errors.Validation, "A/B 测试模板 ID 无效")
 	}
 
 	// 校验模板存在
@@ -287,14 +287,14 @@ func (s *promptServiceImpl) StartABTest(ctx context.Context, test *entity.ABTest
 		return err
 	}
 	if tmplA == nil {
-		return errorx.New(errorx.NotFound, "A/B 测试模板 A 不存在")
+		return errors.NewCode(errors.NotFound, "A/B 测试模板 A 不存在")
 	}
 	tmplB, err := s.templates.Get(ctx, test.TemplateBID)
 	if err != nil {
 		return err
 	}
 	if tmplB == nil {
-		return errorx.New(errorx.NotFound, "A/B 测试模板 B 不存在")
+		return errors.NewCode(errors.NotFound, "A/B 测试模板 B 不存在")
 	}
 
 	test.Status = "running"
@@ -314,14 +314,14 @@ func (s *promptServiceImpl) FindABTestResult(ctx context.Context, testID int64) 
 // AssignABVariant 分配A/B实验分组。
 func (s *promptServiceImpl) AssignABVariant(ctx context.Context, testID int64, userID int64) (*entity.PromptTemplate, string, error) {
 	if testID <= 0 {
-		return nil, "", errorx.New(errorx.InvalidInput, "ab_test_id 无效")
+		return nil, "", errors.NewCode(errors.InvalidInput, "ab_test_id 无效")
 	}
 	test, err := s.abTests.Get(ctx, testID)
 	if err != nil {
 		return nil, "", err
 	}
 	if test == nil || test.Status != "running" {
-		return nil, "", errorx.New(errorx.NotFound, "A/B 测试不可用")
+		return nil, "", errors.NewCode(errors.NotFound, "A/B 测试不可用")
 	}
 
 	traffic := test.TrafficSplit
@@ -349,7 +349,7 @@ func (s *promptServiceImpl) AssignABVariant(ctx context.Context, testID int64, u
 		return nil, "", err
 	}
 	if tmpl == nil {
-		return nil, "", errorx.New(errorx.NotFound, "A/B 变体模板不存在")
+		return nil, "", errors.NewCode(errors.NotFound, "A/B 变体模板不存在")
 	}
 
 	// 记录简单曝光计数到 ResultJSON

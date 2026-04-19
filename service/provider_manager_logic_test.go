@@ -2,14 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"gochen-llm/client"
 	"gochen-llm/entity"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type fakeProviderConfigRepo struct {
@@ -295,7 +294,7 @@ func TestProviderManagerReloadAndListStatus(t *testing.T) {
 }
 
 func TestProviderManagerChatForUserPreservesDependencyFailureCode(t *testing.T) {
-	failClient := &fakeLLMClient{err: errorx.New(errorx.ServiceUnavailable, "upstream auth failed")}
+	failClient := &fakeLLMClient{err: errors.NewCode(errors.ServiceUnavailable, "upstream auth failed")}
 	ep := newTestEndpoint(100, 100, 30)
 	ep.client = failClient
 
@@ -306,13 +305,13 @@ func TestProviderManagerChatForUserPreservesDependencyFailureCode(t *testing.T) 
 	if err == nil {
 		t.Fatalf("expected all endpoints failed")
 	}
-	if !errorx.Is(err, errorx.ServiceUnavailable) {
+	if !errors.Is(err, errors.ServiceUnavailable) {
 		t.Fatalf("expected ServiceUnavailable preserved, got %v", err)
 	}
 }
 
 func TestProviderManagerChatForUser_DoesNotFailoverOnDeterministic4xx(t *testing.T) {
-	badReqClient := &fakeLLMClient{err: errorx.New(errorx.InvalidInput, "bad request")}
+	badReqClient := &fakeLLMClient{err: errors.NewCode(errors.InvalidInput, "bad request")}
 	successClient := &fakeLLMClient{resp: &client.ChatResponse{Content: "ok"}}
 
 	first := newTestEndpoint(100, 100, 30)
@@ -331,7 +330,7 @@ func TestProviderManagerChatForUser_DoesNotFailoverOnDeterministic4xx(t *testing
 	if err == nil {
 		t.Fatalf("expected deterministic provider error")
 	}
-	if !errorx.Is(err, errorx.InvalidInput) {
+	if !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected InvalidInput, got %v", err)
 	}
 	if got := atomic.LoadInt32(&badReqClient.calls); got != 1 {
@@ -346,8 +345,8 @@ func TestProviderManagerChatForUser_DoesNotFailoverOnDeterministic4xx(t *testing
 }
 
 func TestProviderManagerChatForUser_PrefersCurrentDeterministicErrorOverEarlierTransient(t *testing.T) {
-	transientClient := &fakeLLMClient{err: errorx.New(errorx.ServiceUnavailable, "temporary upstream error")}
-	deterministicClient := &fakeLLMClient{err: errorx.New(errorx.InvalidInput, "bad request")}
+	transientClient := &fakeLLMClient{err: errors.NewCode(errors.ServiceUnavailable, "temporary upstream error")}
+	deterministicClient := &fakeLLMClient{err: errors.NewCode(errors.InvalidInput, "bad request")}
 
 	first := newTestEndpoint(100, 100, 30)
 	first.client = transientClient
@@ -365,7 +364,7 @@ func TestProviderManagerChatForUser_PrefersCurrentDeterministicErrorOverEarlierT
 	if err == nil {
 		t.Fatalf("expected provider error")
 	}
-	if !errorx.Is(err, errorx.InvalidInput) {
+	if !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected latest deterministic error, got %v", err)
 	}
 	if got := atomic.LoadInt32(&transientClient.calls); got != 1 {

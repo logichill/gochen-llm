@@ -12,7 +12,7 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	ctxx "gochen/contextx"
-	"gochen/errorx"
+	"gochen/errors"
 	"gochen/logging"
 	"gochen/policy/retry"
 	runtime "gochen/task"
@@ -104,14 +104,14 @@ func (m *providerManagerImpl) Start(ctx context.Context) error {
 	defer m.lifecycleMu.Unlock()
 
 	if m.stopped {
-		return errorx.New(errorx.Internal, "LLM ProviderManager 已停止，无法再次启动")
+		return errors.NewCode(errors.Internal, "LLM ProviderManager 已停止，无法再次启动")
 	}
 	if m.started {
 		return nil
 	}
 
 	if ctx == nil {
-		return errorx.New(errorx.InvalidInput, "ctx 不能为空")
+		return errors.NewCode(errors.InvalidInput, "ctx 不能为空")
 	}
 	loopCtx, cancel := context.WithCancel(ctx)
 	m.cancel = cancel
@@ -152,7 +152,7 @@ func (m *providerManagerImpl) Stop(ctx context.Context) error {
 		}
 	}
 	if ctx == nil {
-		return errorx.New(errorx.InvalidInput, "ctx 不能为空")
+		return errors.NewCode(errors.InvalidInput, "ctx 不能为空")
 	}
 	return nil
 }
@@ -160,10 +160,10 @@ func (m *providerManagerImpl) Stop(ctx context.Context) error {
 // ChatForUser 为指定用户发起对话请求。
 func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
 	if ctx == nil {
-		return nil, errorx.New(errorx.InvalidInput, "ctx 不能为空")
+		return nil, errors.NewCode(errors.InvalidInput, "ctx 不能为空")
 	}
 	if req == nil {
-		return nil, errorx.New(errorx.InvalidInput, "LLM 请求不能为空")
+		return nil, errors.NewCode(errors.InvalidInput, "LLM 请求不能为空")
 	}
 
 	eps, err := m.getOrLoadEndpoints(ctx)
@@ -171,7 +171,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 		return nil, err
 	}
 	if len(eps) == 0 {
-		return nil, errorx.New(errorx.Internal, "LLM 未配置")
+		return nil, errors.NewCode(errors.Internal, "LLM 未配置")
 	}
 
 	now := time.Now()
@@ -180,7 +180,7 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 		candidates = m.selectAllByMinPriority(eps)
 	}
 	if len(candidates) == 0 {
-		return nil, errorx.New(errorx.Internal, "没有可用的 LLM 端点")
+		return nil, errors.NewCode(errors.Internal, "没有可用的 LLM 端点")
 	}
 
 	var firstErr error
@@ -295,15 +295,15 @@ func (m *providerManagerImpl) ChatForUser(ctx context.Context, userID int64, req
 	}
 
 	if firstErr == nil {
-		return nil, errorx.New(errorx.Internal, "LLM 调用失败但未返回具体错误")
+		return nil, errors.NewCode(errors.Internal, "LLM 调用失败但未返回具体错误")
 	}
-	return nil, errorx.Wrap(firstErr, errorx.Code(firstErr), "所有 LLM 端点调用失败")
+	return nil, errors.Wrap(firstErr, errors.Code(firstErr), "所有 LLM 端点调用失败")
 }
 
 // pingEndpoint 探测单个端点的健康状态。
 func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointState) error {
 	if ep == nil || ep.cfg == nil {
-		return errorx.New(errorx.Internal, "端点未初始化")
+		return errors.NewCode(errors.Internal, "端点未初始化")
 	}
 	timeout := time.Duration(maxInt(ep.cfg.HealthTimeoutSeconds, 1)) * time.Second
 	client := &http.Client{Timeout: timeout}
@@ -351,11 +351,11 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 		}
 
 		if err != nil {
-			lastErr = errorx.Wrap(err, errorx.Network, "健康探测请求失败")
+			lastErr = errors.Wrap(err, errors.Network, "健康探测请求失败")
 		} else if resp != nil {
-			lastErr = errorx.New(errorx.ServiceUnavailable, "健康探测返回非成功状态").WithContext("status", resp.StatusCode)
+			lastErr = errors.NewCode(errors.ServiceUnavailable, "健康探测返回非成功状态").WithContext("status", resp.StatusCode)
 		} else {
-			lastErr = errorx.New(errorx.Internal, "未知健康探测错误")
+			lastErr = errors.NewCode(errors.Internal, "未知健康探测错误")
 		}
 		return lastErr
 	}, retryCfg)
@@ -399,13 +399,13 @@ func (m *providerManagerImpl) pingEndpoint(ctx context.Context, ep *endpointStat
 			logging.Error(lastErr),
 		)
 	}
-	return errorx.Wrap(lastErr, errorx.Code(lastErr), "health ping failed")
+	return errors.Wrap(lastErr, errors.Code(lastErr), "health ping failed")
 }
 
 // shouldRetryNextEndpoint 判断当前错误是否应该切换到下一个端点重试。
 func shouldRetryNextEndpoint(err error) bool {
-	switch errorx.Code(err) {
-	case errorx.InvalidInput, errorx.Validation, errorx.Unauthorized, errorx.Forbidden, errorx.NotFound, errorx.Conflict, errorx.Duplicate, errorx.Unsupported:
+	switch errors.Code(err) {
+	case errors.InvalidInput, errors.Validation, errors.Unauthorized, errors.Forbidden, errors.NotFound, errors.Conflict, errors.Duplicate, errors.Unsupported:
 		return false
 	default:
 		return true
@@ -759,10 +759,10 @@ func (m *providerManagerImpl) ReplaceConfigs(ctx context.Context, configs []*ent
 			cfg.Name = cfg.Provider
 		}
 		if cfg.InputPricePer1k < 0 || cfg.OutputPricePer1k < 0 {
-			return errorx.New(errorx.Validation, "LLM 单价不能为负数")
+			return errors.NewCode(errors.Validation, "LLM 单价不能为负数")
 		}
 		if cfg.InputPricePer1k > 100 || cfg.OutputPricePer1k > 100 {
-			return errorx.New(errorx.Validation, "LLM 单价疑似异常（>100 USD/1k tokens）")
+			return errors.NewCode(errors.Validation, "LLM 单价疑似异常（>100 USD/1k tokens）")
 		}
 	}
 	if err := m.repo.ReplaceAll(ctx, configs); err != nil {

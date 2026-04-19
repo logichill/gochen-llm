@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -10,7 +9,7 @@ import (
 	"gochen-llm/client"
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type testChatManager struct {
@@ -209,12 +208,12 @@ func (c *testCostCalc) EstimateCost(provider string, model string, requestTokens
 }
 
 func TestChatServiceChatValidationAndHappyPath(t *testing.T) {
-	if _, err := NewChatService(nil, nil, nil, nil, nil).Chat(context.Background(), nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if _, err := NewChatService(nil, nil, nil, nil, nil).Chat(context.Background(), nil); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid input for nil chat req, got %v", err)
 	}
 
 	nilManagerSvc := &chatServiceImpl{}
-	if _, err := nilManagerSvc.Chat(context.Background(), &ChatRequest{}); err == nil || !errorx.Is(err, errorx.Internal) {
+	if _, err := nilManagerSvc.Chat(context.Background(), &ChatRequest{}); err == nil || !errors.Is(err, errors.Internal) {
 		t.Fatalf("expected manager missing error, got %v", err)
 	}
 
@@ -355,16 +354,16 @@ func TestChatServicePromptStreamAndBatch(t *testing.T) {
 	}
 
 	svc := NewChatService(manager, prompt, nil, nil, nil)
-	if _, err := svc.ChatWithPrompt(context.Background(), nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if _, err := svc.ChatWithPrompt(context.Background(), nil); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid prompt chat request")
 	}
 
 	svcNoPrompt := NewChatService(manager, nil, nil, nil, nil)
-	if _, err := svcNoPrompt.ChatWithPrompt(context.Background(), &PromptChatRequest{}); err == nil || !errorx.Is(err, errorx.Internal) {
+	if _, err := svcNoPrompt.ChatWithPrompt(context.Background(), &PromptChatRequest{}); err == nil || !errors.Is(err, errors.Internal) {
 		t.Fatalf("expected prompt service missing error")
 	}
 
-	if _, err := svc.ChatWithPrompt(context.Background(), &PromptChatRequest{PromptName: "missing", PromptScope: entity.PromptScopeGlobal}); err == nil || !errorx.Is(err, errorx.NotFound) {
+	if _, err := svc.ChatWithPrompt(context.Background(), &PromptChatRequest{PromptName: "missing", PromptScope: entity.PromptScopeGlobal}); err == nil || !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected prompt not found error")
 	}
 
@@ -443,7 +442,7 @@ func TestChatServiceErrorMetricsUseErrorCode(t *testing.T) {
 	var saved []*entity.Metrics
 	manager := &testChatManager{
 		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
-			return &ChatExecution{Provider: "openai", Model: "gpt"}, errorx.New(errorx.TooManyRequests, "rate limited")
+			return &ChatExecution{Provider: "openai", Model: "gpt"}, errors.NewCode(errors.TooManyRequests, "rate limited")
 		},
 	}
 	metrics := &testMetricsRepo{saveFn: func(ctx context.Context, m *entity.Metrics) error {
@@ -459,7 +458,7 @@ func TestChatServiceErrorMetricsUseErrorCode(t *testing.T) {
 	if len(saved) != 1 {
 		t.Fatalf("expected one metric saved, got %#v", saved)
 	}
-	if saved[0].ErrorType != string(errorx.TooManyRequests) {
+	if saved[0].ErrorType != string(errors.TooManyRequests) {
 		t.Fatalf("expected error type code, got %#v", saved[0])
 	}
 }

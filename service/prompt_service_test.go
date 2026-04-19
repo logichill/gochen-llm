@@ -3,13 +3,12 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strings"
 	"testing"
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type testPromptRepo struct {
@@ -113,10 +112,10 @@ func TestPromptServiceRenderAndCompose(t *testing.T) {
 	}
 	svc := NewPromptService(repoStub, &testPromptVersionRepo{}, &testABTestRepo{})
 
-	if _, err := svc.RenderPrompt(context.Background(), nil, nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if _, err := svc.RenderPrompt(context.Background(), nil, nil); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid input for nil template, got %v", err)
 	}
-	if _, err := svc.RenderPrompt(context.Background(), &entity.PromptTemplate{Content: "{{ .x"}, nil); err == nil || !errorx.Is(err, errorx.Internal) {
+	if _, err := svc.RenderPrompt(context.Background(), &entity.PromptTemplate{Content: "{{ .x"}, nil); err == nil || !errors.Is(err, errors.Internal) {
 		t.Fatalf("expected parse error, got %v", err)
 	}
 
@@ -171,7 +170,7 @@ func TestPromptServiceSaveAndVersionLifecycle(t *testing.T) {
 	}
 	svc := NewPromptService(repoStub, versionRepo, &testABTestRepo{})
 
-	if err := svc.SavePrompt(context.Background(), nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if err := svc.SavePrompt(context.Background(), nil); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid input when saving nil prompt, got %v", err)
 	}
 
@@ -186,10 +185,10 @@ func TestPromptServiceSaveAndVersionLifecycle(t *testing.T) {
 		t.Fatalf("expected save version called")
 	}
 
-	if _, err := svc.CreateVersion(context.Background(), 0, "bad"); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if _, err := svc.CreateVersion(context.Background(), 0, "bad"); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid input for template id, got %v", err)
 	}
-	if _, err := svc.CreateVersion(context.Background(), 404, "none"); err == nil || !errorx.Is(err, errorx.NotFound) {
+	if _, err := svc.CreateVersion(context.Background(), 404, "none"); err == nil || !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected not found, got %v", err)
 	}
 
@@ -201,10 +200,10 @@ func TestPromptServiceSaveAndVersionLifecycle(t *testing.T) {
 		t.Fatalf("expected new version 3, got %d", version.Version)
 	}
 
-	if err := svc.RollbackVersion(context.Background(), 0, 1); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if err := svc.RollbackVersion(context.Background(), 0, 1); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid input rollback, got %v", err)
 	}
-	if err := svc.RollbackVersion(context.Background(), 10, 999); err == nil || !errorx.Is(err, errorx.NotFound) {
+	if err := svc.RollbackVersion(context.Background(), 10, 999); err == nil || !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected missing rollback version, got %v", err)
 	}
 
@@ -280,7 +279,7 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 		t.Fatalf("unexpected export payload: %v len=%d", err, len(exported))
 	}
 
-	if err := svc.ImportPrompts(context.Background(), []byte("bad-json")); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if err := svc.ImportPrompts(context.Background(), []byte("bad-json")); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid import error, got %v", err)
 	}
 	if err := svc.ImportPrompts(context.Background(), []byte(`[{"name":"x","content":"y"}]`)); err != nil {
@@ -290,10 +289,10 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 		t.Fatalf("expected upsert invoked during import")
 	}
 
-	if err := svc.StartABTest(context.Background(), nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if err := svc.StartABTest(context.Background(), nil); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected nil ab test error, got %v", err)
 	}
-	if err := svc.StartABTest(context.Background(), &entity.ABTest{TemplateAID: 0, TemplateBID: 1}); err == nil || !errorx.Is(err, errorx.Validation) {
+	if err := svc.StartABTest(context.Background(), &entity.ABTest{TemplateAID: 0, TemplateBID: 1}); err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected invalid template id error, got %v", err)
 	}
 	if err := svc.StartABTest(context.Background(), &entity.ABTest{TemplateAID: 33, TemplateBID: 22}); err == nil {
@@ -308,10 +307,10 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 		t.Fatalf("expected running status and start time, got %+v", start)
 	}
 
-	if _, _, err := svc.AssignABVariant(context.Background(), 0, 10); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if _, _, err := svc.AssignABVariant(context.Background(), 0, 10); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid test id, got %v", err)
 	}
-	if _, _, err := svc.AssignABVariant(context.Background(), 2, 10); err == nil || !errorx.Is(err, errorx.NotFound) {
+	if _, _, err := svc.AssignABVariant(context.Background(), 2, 10); err == nil || !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected unavailable ab test error, got %v", err)
 	}
 

@@ -5,7 +5,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/db/orm"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // IConversationRepo 会话仓储
@@ -37,10 +37,10 @@ func NewConversationRepo(o orm.IOrm) IConversationRepo {
 func (r *conversationRepoImpl) CreateConversation(ctx context.Context, conv *entity.Conversation) error {
 	model, err := r.conversationModel.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 conversation model 失败")
+		return errors.Wrap(err, errors.Database, "创建 conversation model 失败")
 	}
 	if err := model.Create(ctx, conv); err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建会话失败")
+		return errors.Wrap(err, errors.Database, "创建会话失败")
 	}
 	return nil
 }
@@ -50,14 +50,14 @@ func (r *conversationRepoImpl) FindConversation(ctx context.Context, id int64) (
 	var conv entity.Conversation
 	model, err := r.conversationModel.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建 conversation model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建 conversation model 失败")
 	}
 	err = model.First(ctx, &conv, orm.WithWhere("id = ?", id))
 	if err != nil {
-		if errorx.Is(err, errorx.NotFound) {
+		if errors.Is(err, errors.NotFound) {
 			return nil, nil
 		}
-		return nil, errorx.Wrap(err, errorx.Database, "查询会话失败")
+		return nil, errors.Wrap(err, errors.Database, "查询会话失败")
 	}
 	return &conv, nil
 }
@@ -66,10 +66,10 @@ func (r *conversationRepoImpl) FindConversation(ctx context.Context, id int64) (
 func (r *conversationRepoImpl) UpdateConversation(ctx context.Context, conv *entity.Conversation) error {
 	model, err := r.conversationModel.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 conversation model 失败")
+		return errors.Wrap(err, errors.Database, "创建 conversation model 失败")
 	}
 	if err := model.Save(ctx, conv, orm.WithWhere("id = ?", conv.ID)); err != nil {
-		return errorx.Wrap(err, errorx.Database, "更新会话失败")
+		return errors.Wrap(err, errors.Database, "更新会话失败")
 	}
 	return nil
 }
@@ -78,10 +78,10 @@ func (r *conversationRepoImpl) UpdateConversation(ctx context.Context, conv *ent
 func (r *conversationRepoImpl) AddMessage(ctx context.Context, msg *entity.Message) error {
 	model, err := r.messageModel.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 message model 失败")
+		return errors.Wrap(err, errors.Database, "创建 message model 失败")
 	}
 	if err := model.Create(ctx, msg); err != nil {
-		return errorx.Wrap(err, errorx.Database, "添加消息失败")
+		return errors.Wrap(err, errors.Database, "添加消息失败")
 	}
 	return nil
 }
@@ -94,14 +94,14 @@ func (r *conversationRepoImpl) ListMessages(ctx context.Context, conversationID 
 	var messages []*entity.Message
 	model, err := r.messageModel.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建 message model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建 message model 失败")
 	}
 	if err := model.Find(ctx, &messages,
 		orm.WithWhere("conversation_id = ?", conversationID),
 		orm.WithOrderBy("created_at", true),
 		orm.WithLimit(limit),
 	); err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "查询消息列表失败")
+		return nil, errors.Wrap(err, errors.Database, "查询消息列表失败")
 	}
 	return messages, nil
 }
@@ -114,7 +114,7 @@ func (r *conversationRepoImpl) TrimMessages(ctx context.Context, conversationID 
 
 	model, err := r.messageModel.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 message model 失败")
+		return errors.Wrap(err, errors.Database, "创建 message model 失败")
 	}
 
 	var ids []int64
@@ -125,14 +125,14 @@ func (r *conversationRepoImpl) TrimMessages(ctx context.Context, conversationID 
 		orm.WithOffset(keepLast),
 	)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "查询待删除消息失败")
+		return errors.Wrap(err, errors.Database, "查询待删除消息失败")
 	}
 	if len(ids) == 0 {
 		return nil
 	}
 
 	if err := model.Delete(ctx, orm.WithWhere("id IN ?", ids)); err != nil {
-		return errorx.Wrap(err, errorx.Database, "压缩会话消息失败")
+		return errors.Wrap(err, errors.Database, "压缩会话消息失败")
 	}
 	return nil
 }

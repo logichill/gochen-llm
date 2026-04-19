@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	llmauthz "gochen-llm/moduleauthz"
-	goauthz "gochen/authz"
+	"gochen/auth"
 	"gochen/server"
 )
 
 func TestNewModule_RegistersPermissionCatalog(t *testing.T) {
-	registry := goauthz.NewRegistry()
+	registry := auth.NewRegistry()
 	srv := server.NewServer([]server.ModuleCtor{NewModule}, server.WithServerAuthzRegistry(registry))
 
 	if err := srv.SetupDependencies(context.Background()); err != nil {
@@ -26,8 +26,8 @@ func TestNewModule_RegistersPermissionCatalog(t *testing.T) {
 	}
 
 	expected := []string{
-		llmauthz.PermissionSet.Code(goauthz.PermissionActionRead),
-		llmauthz.PermissionSet.Code(goauthz.PermissionActionWrite),
+		llmauthz.PermissionSet.Code(auth.PermissionActionRead),
+		llmauthz.PermissionSet.Code(auth.PermissionActionWrite),
 	}
 	if got := registry.Permissions(); len(got) != len(expected) || got[0] != expected[0] || got[1] != expected[1] {
 		t.Fatalf("unexpected llm permissions: %#v", got)

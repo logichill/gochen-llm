@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type httpClient struct {
@@ -31,7 +31,7 @@ func newHTTPClient(cfg *Config) *httpClient {
 // doRequest 处理do请求。
 func (c *httpClient) doRequest(ctx context.Context, url string, payload any, parse func([]byte) (*ChatResponse, error)) (*ChatResponse, error) {
 	if ctx == nil {
-		return nil, errorx.New(errorx.InvalidInput, "ctx is nil")
+		return nil, errors.NewCode(errors.InvalidInput, "ctx is nil")
 	}
 
 	buf, err := json.Marshal(payload)

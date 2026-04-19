@@ -2,14 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 	"time"
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type testSafetyPolicyRepo struct {
@@ -97,7 +96,7 @@ func TestSafetyServicePolicyAndPII(t *testing.T) {
 	}
 
 	res, err := svc.ValidateInput(context.Background(), "please hack now")
-	if err == nil || !errorx.Is(err, errorx.Validation) {
+	if err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected validation error for blocked keyword, got %v", err)
 	}
 	if res == nil || res.Allowed {
@@ -105,7 +104,7 @@ func TestSafetyServicePolicyAndPII(t *testing.T) {
 	}
 
 	filtered, err := svc.FilterContent(context.Background(), "这包含暴力内容")
-	if err == nil || !errorx.Is(err, errorx.Validation) {
+	if err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected blocked content returns validation error, got %v", err)
 	}
 	if filtered != "这包含暴力内容" {
@@ -118,7 +117,7 @@ func TestSafetyServicePolicyAndPII(t *testing.T) {
 	}
 
 	piiRes, err := svc.DetectPII(context.Background(), "mail: a@test.com")
-	if err == nil || !errorx.Is(err, errorx.Validation) {
+	if err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected pii validation error, got %v", err)
 	}
 	if piiRes == nil || piiRes.Allowed {
@@ -153,7 +152,7 @@ func TestSafetyServiceRateLimitAndAudit(t *testing.T) {
 	}
 
 	res, err := baseSvc.CheckRateLimit(context.Background(), 101)
-	if err == nil || !errorx.Is(err, errorx.Validation) {
+	if err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected rate limited error on second request, got %v", err)
 	}
 	if res == nil || res.Allowed || res.Reason != "rate_limited" {
@@ -171,7 +170,7 @@ func TestSafetyServiceRateLimitAndAudit(t *testing.T) {
 			return &entity.RateLimit{RequestCount: 999}, nil
 		},
 	})
-	if _, err := dbLimitSvc.CheckRateLimit(context.Background(), 1); err == nil || !errorx.Is(err, errorx.Validation) {
+	if _, err := dbLimitSvc.CheckRateLimit(context.Background(), 1); err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected db fallback rate limit error, got %v", err)
 	}
 
@@ -191,7 +190,7 @@ func TestSafetyServiceRateLimitAndAudit(t *testing.T) {
 			return nil
 		},
 	}, nil)
-	if err := auditSvc.RecordAuditLog(context.Background(), nil); err == nil || !errorx.Is(err, errorx.InvalidInput) {
+	if err := auditSvc.RecordAuditLog(context.Background(), nil); err == nil || !errors.Is(err, errors.InvalidInput) {
 		t.Fatalf("expected invalid audit log error, got %v", err)
 	}
 	if err := auditSvc.RecordAuditLog(context.Background(), &entity.AuditLog{Action: "llm.chat"}); err != nil {

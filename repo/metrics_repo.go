@@ -6,7 +6,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen/db/orm"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 // IMetricsRepo 持久化 LLM 调用指标
@@ -34,14 +34,14 @@ func NewMetricsRepo(o orm.IOrm) IMetricsRepo {
 // Save 保存数据。
 func (r *metricsRepoImpl) Save(ctx context.Context, m *entity.Metrics) error {
 	if m == nil {
-		return errorx.New(errorx.InvalidInput, "metrics 不能为空")
+		return errors.NewCode(errors.InvalidInput, "metrics 不能为空")
 	}
 	model, err := r.model.model(r.orm)
 	if err != nil {
-		return errorx.Wrap(err, errorx.Database, "创建 metrics model 失败")
+		return errors.Wrap(err, errors.Database, "创建 metrics model 失败")
 	}
 	if err := model.Create(ctx, m); err != nil {
-		return errorx.Wrap(err, errorx.Database, "保存 LLM 指标失败")
+		return errors.Wrap(err, errors.Database, "保存 LLM 指标失败")
 	}
 	return nil
 }
@@ -66,10 +66,10 @@ func (r *metricsRepoImpl) Aggregate(ctx context.Context, filter entity.MetricsFi
 
 	model, err := r.model.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建 metrics model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建 metrics model 失败")
 	}
 	if err := model.First(ctx, report, opts...); err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "汇总 LLM 指标失败")
+		return nil, errors.Wrap(err, errors.Database, "汇总 LLM 指标失败")
 	}
 
 	if report.TotalCalls > 0 {
@@ -83,7 +83,7 @@ func (r *metricsRepoImpl) Aggregate(ctx context.Context, filter entity.MetricsFi
 // AggregateByVariant 按实验分组聚合统计。
 func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.MetricsFilter) ([]*entity.VariantMetricsReport, error) {
 	if filter.ABTestID == nil {
-		return nil, errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
+		return nil, errors.NewCode(errors.InvalidInput, "ab_test_id 不能为空")
 	}
 
 	opts := buildMetricsOptions(filter)
@@ -111,10 +111,10 @@ func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.
 
 	model, err := r.model.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建 metrics model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建 metrics model 失败")
 	}
 	if err := model.Find(ctx, &rows, queryOpts...); err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "按变体汇总 LLM 指标失败")
+		return nil, errors.Wrap(err, errors.Database, "按变体汇总 LLM 指标失败")
 	}
 
 	result := make([]*entity.VariantMetricsReport, 0, len(rows))
@@ -133,7 +133,7 @@ func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.
 // Significance 计算显著性指标。
 func (r *metricsRepoImpl) Significance(ctx context.Context, filter entity.MetricsFilter) (*entity.ABSignificanceReport, error) {
 	if filter.ABTestID == nil {
-		return nil, errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
+		return nil, errors.NewCode(errors.InvalidInput, "ab_test_id 不能为空")
 	}
 
 	// 基于成功调用作为曝光，转换事件为 status=converted（可按 outcome 过滤）
@@ -213,10 +213,10 @@ func (r *metricsRepoImpl) queryVariantCount(ctx context.Context, filter entity.M
 
 	model, err := r.model.model(r.orm)
 	if err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "创建 metrics model 失败")
+		return nil, errors.Wrap(err, errors.Database, "创建 metrics model 失败")
 	}
 	if err := model.Find(ctx, &rows, opts...); err != nil {
-		return nil, errorx.Wrap(err, errorx.Database, "统计 A/B 指标失败")
+		return nil, errors.Wrap(err, errors.Database, "统计 A/B 指标失败")
 	}
 
 	result := map[string]int64{
@@ -285,7 +285,7 @@ func (r *metricsRepoImpl) List(ctx context.Context, filter entity.MetricsFilter,
 	opts := buildMetricsOptions(filter)
 	model, err := r.model.model(r.orm)
 	if err != nil {
-		return nil, 0, errorx.Wrap(err, errorx.Database, "创建 metrics model 失败")
+		return nil, 0, errors.Wrap(err, errors.Database, "创建 metrics model 失败")
 	}
 
 	if limit <= 0 || limit > 500 {
@@ -297,7 +297,7 @@ func (r *metricsRepoImpl) List(ctx context.Context, filter entity.MetricsFilter,
 
 	total, err := model.Count(ctx, opts...)
 	if err != nil {
-		return nil, 0, errorx.Wrap(err, errorx.Database, "统计 LLM 指标总数失败")
+		return nil, 0, errors.Wrap(err, errors.Database, "统计 LLM 指标总数失败")
 	}
 
 	listOpts := append(opts,
@@ -308,7 +308,7 @@ func (r *metricsRepoImpl) List(ctx context.Context, filter entity.MetricsFilter,
 
 	var list []*entity.Metrics
 	if err := model.Find(ctx, &list, listOpts...); err != nil {
-		return nil, 0, errorx.Wrap(err, errorx.Database, "查询 LLM 指标列表失败")
+		return nil, 0, errors.Wrap(err, errors.Database, "查询 LLM 指标列表失败")
 	}
 	return list, total, nil
 }

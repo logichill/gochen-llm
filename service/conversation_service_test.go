@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"gochen-llm/entity"
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type testConversationRepo struct {
@@ -72,7 +72,7 @@ func TestConversationServiceCreateConversation(t *testing.T) {
 	}
 	svc := NewConversationService(repo)
 
-	if _, err := svc.CreateConversation(context.Background(), 0, nil); err == nil || !errorx.Is(err, errorx.Validation) {
+	if _, err := svc.CreateConversation(context.Background(), 0, nil); err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected validation error for invalid user id, got %v", err)
 	}
 
@@ -123,7 +123,7 @@ func TestConversationServiceAddAndGetMessages(t *testing.T) {
 	}
 	svc := NewConversationService(repo)
 
-	if err := svc.AddMessage(context.Background(), 10, nil); err == nil || !errorx.Is(err, errorx.Validation) {
+	if err := svc.AddMessage(context.Background(), 10, nil); err == nil || !errors.Is(err, errors.Validation) {
 		t.Fatalf("expected validation error for nil message, got %v", err)
 	}
 
@@ -194,7 +194,7 @@ func TestConversationServiceSummarizeBranchAndCompress(t *testing.T) {
 		t.Fatalf("summary should be capped at 800 chars, got %d", len(summary))
 	}
 
-	if _, err := svc.CreateBranch(context.Background(), 404, 10); err == nil || !errorx.Is(err, errorx.NotFound) {
+	if _, err := svc.CreateBranch(context.Background(), 404, 10); err == nil || !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected not found for missing base conversation, got %v", err)
 	}
 

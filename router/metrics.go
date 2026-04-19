@@ -6,21 +6,21 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	restapi "gochen/api/restapi"
-	dataquery "gochen/db/query"
+	"gochen/db/query"
 	"gochen/db/query/querybind"
-	"gochen/errorx"
+	"gochen/errors"
 	"gochen/httpx"
 )
 
 type llmMetricsQueryFields struct {
-	Provider  string                     `query:"type=enum,ops=eq"`
-	Model     string                     `query:"type=enum,ops=eq"`
-	Status    string                     `query:"type=enum,ops=eq"`
-	ABVariant string                     `query:"type=enum,ops=eq"`
-	Outcome   string                     `query:"type=enum,ops=eq"`
-	ABTestID  *int64                     `query:"field=ab_test_id,ops=eq"`
-	UserID    *int64                     `query:"field=user_id,ops=eq"`
-	CreatedAt dataquery.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
+	Provider  string                 `query:"type=enum,ops=eq"`
+	Model     string                 `query:"type=enum,ops=eq"`
+	Status    string                 `query:"type=enum,ops=eq"`
+	ABVariant string                 `query:"type=enum,ops=eq"`
+	Outcome   string                 `query:"type=enum,ops=eq"`
+	ABTestID  *int64                 `query:"field=ab_test_id,ops=eq"`
+	UserID    *int64                 `query:"field=user_id,ops=eq"`
+	CreatedAt query.Range[time.Time] `query:"field=created_at,ops=gte|lte"`
 }
 
 var llmMetricsQueryContract = querybind.MustNewContract[llmMetricsQueryFields](nil)
@@ -60,7 +60,7 @@ func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 // aggregate 聚合数据。
 func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
 	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
@@ -98,7 +98,7 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 // list 列出数据。
 func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
 	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end", "limit", "offset",
@@ -132,7 +132,7 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 // significance 处理 significance。
 func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errorx.Internal, "LLM metrics repo 未配置")
+		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
 	if err := restapi.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
@@ -159,7 +159,7 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	return httpx.WriteSuccess(ctx, map[string]any{"report": report})
 }
 
-func decodeMetricsFilter(filters dataquery.QueryFilters) (entity.MetricsFilter, error) {
+func decodeMetricsFilter(filters query.QueryFilters) (entity.MetricsFilter, error) {
 	bound, err := llmMetricsQueryContract.Decode(filters)
 	if err != nil {
 		return entity.MetricsFilter{}, err
@@ -181,13 +181,13 @@ func requireABTestID(filter entity.MetricsFilter) error {
 	if filter.ABTestID != nil {
 		return nil
 	}
-	return errorx.New(errorx.InvalidInput, "ab_test_id 不能为空")
+	return errors.NewCode(errors.InvalidInput, "ab_test_id 不能为空")
 }
 
 func parseMetricsAggregateGroupBy(ctx httpx.IContext) (string, error) {
-	query, err := restapi.ParseQuery[metricsAggregateQuery](ctx)
+	quer, err := restapi.ParseQuery[metricsAggregateQuery](ctx)
 	if err != nil {
 		return "", err
 	}
-	return query.GroupBy, nil
+	return quer.GroupBy, nil
 }

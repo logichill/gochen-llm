@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"gochen/errorx"
+	"gochen/errors"
 )
 
 type geminiClient struct {
@@ -100,7 +100,7 @@ func (c *geminiClient) Chat(ctx context.Context, req *ChatRequest) (*ChatRespons
 			return nil, wrapClientInternal(err, "解析 Gemini 响应失败")
 		}
 		if len(gr.Candidates) == 0 || len(gr.Candidates[0].Content.Parts) == 0 {
-			return nil, errorx.New(errorx.Internal, "gemini 响应中不包含内容")
+			return nil, errors.NewCode(errors.Internal, "gemini 响应中不包含内容")
 		}
 		return &ChatResponse{Content: gr.Candidates[0].Content.Parts[0].Text}, nil
 	})
