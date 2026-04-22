@@ -8,11 +8,11 @@ import (
 	"gochen-llm/router"
 	"gochen-llm/service"
 	"gochen/boot"
-	"gochen/server"
+	"gochen/host/module"
 )
 
 // NewModule 创建模块。
-func NewModule() (server.IModule, error) {
+func NewModule() (module.IModule, error) {
 	return boot.BuildModule(
 		boot.Module("llm").
 			Name("LLM").

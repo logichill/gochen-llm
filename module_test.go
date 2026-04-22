@@ -6,15 +6,15 @@ import (
 
 	llmauthz "gochen-llm/moduleauthz"
 	"gochen/auth"
-	"gochen/server"
+	"gochen/host/module"
 )
 
 func TestNewModule_RegistersPermissionCatalog(t *testing.T) {
 	registry := auth.NewRegistry()
-	srv := server.NewServer([]server.ModuleCtor{NewModule}, server.WithServerAuthzRegistry(registry))
+	host := module.NewHost([]module.ModuleCtor{NewModule}, module.WithHostAuthzRegistry(registry))
 
-	if err := srv.SetupDependencies(context.Background()); err != nil {
-		t.Fatalf("SetupDependencies: %v", err)
+	if err := host.Prepare(context.Background()); err != nil {
+		t.Fatalf("Prepare: %v", err)
 	}
 
 	module, ok := registry.Module("llm")
