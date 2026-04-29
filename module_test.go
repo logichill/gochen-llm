@@ -2,16 +2,17 @@ package llm
 
 import (
 	"context"
+	moduleruntime "gochen/host/module/runtime"
 	"testing"
 
 	llmauthz "gochen-llm/moduleauthz"
-	"gochen/auth"
+	auth "gochen/auth/core"
 	"gochen/host/module"
 )
 
 func TestNewModule_RegistersPermissionCatalog(t *testing.T) {
 	registry := auth.NewRegistry()
-	host := module.NewHost([]module.ModuleCtor{NewModule}, module.WithHostAuthzRegistry(registry))
+	host := moduleruntime.NewHost([]module.ModuleCtor{NewModule}, moduleruntime.WithHostAuthzRegistry(registry))
 
 	if err := host.Prepare(context.Background()); err != nil {
 		t.Fatalf("Prepare: %v", err)

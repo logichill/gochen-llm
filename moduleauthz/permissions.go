@@ -1,8 +1,8 @@
 package moduleauthz
 
 import (
-	"gochen/auth"
-	authhttp "gochen/auth/http"
+	authhttp "gochen/auth/adapters/http"
+	auth "gochen/auth/core"
 	"gochen/httpx"
 )
 
