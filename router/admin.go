@@ -6,7 +6,7 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
-	restapi "gochen/api/restapi"
+	"gochen/api/restapi"
 	"gochen/db/query"
 	"gochen/db/query/querybind"
 	"gochen/errors"
