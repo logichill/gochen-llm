@@ -12,7 +12,7 @@ import (
 
 func TestNewModule_RegistersPermissionCatalog(t *testing.T) {
 	registry := auth.NewRegistry()
-	host := moduleruntime.NewHost([]module.ModuleCtor{NewModule}, moduleruntime.WithHostAuthzRegistry(registry))
+	host := moduleruntime.NewHost([]module.ModuleCtor{NewModule}, moduleruntime.WithAuthzRegistry(registry))
 
 	if err := host.Prepare(context.Background()); err != nil {
 		t.Fatalf("Prepare: %v", err)

@@ -7,41 +7,40 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/router"
 	"gochen-llm/service"
-	"gochen/boot"
+	"gochen/host"
 	"gochen/host/module"
 )
 
 // NewModule 创建模块。
 func NewModule() (module.IModule, error) {
-	return boot.BuildModule(
-		boot.Module("llm").
-			Name("LLM").
-			PermissionDefinitions(llmauthz.PermissionDefinitions()...).
-			Provide(
-				// Repos
-				repo.NewProviderConfigRepo,
-				repo.NewSafetyPolicyRepo,
-				repo.NewPromptTemplateRepo,
-				repo.NewPromptVersionRepo,
-				repo.NewABTestRepo,
-				repo.NewAuditLogRepo,
-				repo.NewRateLimitRepo,
-				repo.NewConversationRepo,
-				repo.NewMetricsRepo,
-				// Services
-				service.NewProviderManager,
-				service.NewSafetyService,
-				service.NewPromptService,
-				service.NewConversationService,
-				service.NewCostCalculator,
-				service.NewChatService,
-			).
-			RouteRegistrar(
-				router.NewLLMAdminRoutes,
-				router.NewMetricsRoutes,
-			).
-			RuntimeComponent(newProviderManagerRuntime),
-	), nil
+	return host.Module("llm").
+		Name("LLM").
+		PermissionDefinitions(llmauthz.PermissionDefinitions()...).
+		Provide(
+			// Repos
+			repo.NewProviderConfigRepo,
+			repo.NewSafetyPolicyRepo,
+			repo.NewPromptTemplateRepo,
+			repo.NewPromptVersionRepo,
+			repo.NewABTestRepo,
+			repo.NewAuditLogRepo,
+			repo.NewRateLimitRepo,
+			repo.NewConversationRepo,
+			repo.NewMetricsRepo,
+			// Services
+			service.NewProviderManager,
+			service.NewSafetyService,
+			service.NewPromptService,
+			service.NewConversationService,
+			service.NewCostCalculator,
+			service.NewChatService,
+		).
+		RouteRegistrar(
+			router.NewLLMAdminRoutes,
+			router.NewMetricsRoutes,
+		).
+		RuntimeComponent(newProviderManagerRuntime).
+		Build()
 }
 
 type providerManagerRuntime struct {
