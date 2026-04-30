@@ -5,7 +5,7 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/api/restapi"
+	"gochen/api/rest"
 	"gochen/db/query"
 	"gochen/db/query/querybind"
 	"gochen/errors"
@@ -25,7 +25,7 @@ type llmMetricsQueryFields struct {
 
 var llmMetricsQueryContract = querybind.MustNewContract[llmMetricsQueryFields](nil)
 var llmMetricsQuerySchema = llmMetricsQueryContract.Schema()
-var llmMetricsQueryConfig = restapi.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
+var llmMetricsQueryConfig = rest.NewQueryRouteConfig[int64](llmMetricsQuerySchema, 50, 500)
 
 type metricsAggregateQuery struct {
 	GroupBy string `query:"group_by"`
@@ -62,13 +62,13 @@ func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := restapi.RejectLegacyQueryParams(ctx,
+	if err := rest.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	params, err := restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
+	params, err := rest.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -100,13 +100,13 @@ func (r *MetricsRoutes) list(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := restapi.RejectLegacyQueryParams(ctx,
+	if err := rest.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end", "limit", "offset",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	opts, err := restapi.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
+	opts, err := rest.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -134,13 +134,13 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := restapi.RejectLegacyQueryParams(ctx,
+	if err := rest.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	params, err := restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
+	params, err := rest.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -185,7 +185,7 @@ func requireABTestID(filter entity.MetricsFilter) error {
 }
 
 func parseMetricsAggregateGroupBy(ctx httpx.IContext) (string, error) {
-	quer, err := restapi.ParseQuery[metricsAggregateQuery](ctx)
+	quer, err := rest.ParseQuery[metricsAggregateQuery](ctx)
 	if err != nil {
 		return "", err
 	}

@@ -6,7 +6,7 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
-	"gochen/api/restapi"
+	"gochen/api/rest"
 	"gochen/db/query"
 	"gochen/db/query/querybind"
 	"gochen/errors"
@@ -24,7 +24,7 @@ type llmAuditLogQueryFields struct {
 
 var llmAuditLogQueryContract = querybind.MustNewContract[llmAuditLogQueryFields](nil)
 var llmAuditLogQuerySchema = llmAuditLogQueryContract.Schema()
-var llmAuditLogQueryConfig = restapi.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
+var llmAuditLogQueryConfig = rest.NewQueryRouteConfig[int64](llmAuditLogQuerySchema, 50, 200)
 
 // LLMAdminRoutes 提供 LLM 模块的管理接口
 type LLMAdminRoutes struct {
@@ -232,13 +232,13 @@ func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := restapi.RejectLegacyQueryParams(ctx,
+	if err := rest.RejectLegacyQueryParams(ctx,
 		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	params, err := restapi.ParseQueryParams(ctx, llmMetricsQueryConfig)
+	params, err := rest.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
@@ -329,13 +329,13 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM audit repo 未配置")
 	}
-	if err := restapi.RejectLegacyQueryParams(ctx,
+	if err := rest.RejectLegacyQueryParams(ctx,
 		"user_id", "action", "status", "resource_type", "start", "end", "limit", "offset",
 	); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
-	opts, err := restapi.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
+	opts, err := rest.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
