@@ -6,7 +6,7 @@ import (
 	"time"
 
 	llmauthz "gochen-llm/moduleauthz"
-	auth "gochen/auth/core"
+	auth "gochen/auth"
 	"gochen/errors"
 	"gochen/httpx"
 )

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	llmauthz "gochen-llm/moduleauthz"
-	auth "gochen/auth/core"
+	auth "gochen/auth"
 	"gochen/host/module"
 )
 
