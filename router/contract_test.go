@@ -17,7 +17,7 @@ import (
 	"gochen-llm/service"
 	"gochen/errors"
 	"gochen/httpx"
-	"gochen/httpx/adaptersupport"
+	"gochen/httpx/request"
 )
 
 type routerTestContext struct {
@@ -61,7 +61,7 @@ func (c *routerTestContext) BindJSON(obj any) error {
 	return json.Unmarshal(c.body, obj)
 }
 func (c *routerTestContext) BindQuery(obj any) error {
-	return adaptersupport.BindQuery(obj, c.request.URL.Query())
+	return request.BindQuery(obj, c.request.URL.Query())
 }
 func (c *routerTestContext) ShouldBindJSON(obj any) error { return c.BindJSON(obj) }
 func (c *routerTestContext) SetStatus(code int)           { c.status = code }

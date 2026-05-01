@@ -11,7 +11,6 @@ import (
 	"gochen/db/query/querybind"
 	"gochen/errors"
 	"gochen/httpx"
-	"gochen/httpx/nethttp"
 )
 
 type llmAuditLogQueryFields struct {
@@ -35,7 +34,6 @@ type LLMAdminRoutes struct {
 	cfgRepo    repo.IProviderConfigRepo
 	auditRepo  repo.IAuditLogRepo
 	rateRepo   repo.IRateLimitRepo
-	utils      *nethttp.Utils
 }
 
 // NewLLMAdminRoutes 创建LLM管理端路由集合。
@@ -48,7 +46,6 @@ func NewLLMAdminRoutes(manager service.IProviderManager, safety repo.ISafetyPoli
 		cfgRepo:    cfgRepo,
 		auditRepo:  audit,
 		rateRepo:   rate,
-		utils:      &nethttp.Utils{},
 	}
 }
 
