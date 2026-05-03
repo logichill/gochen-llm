@@ -43,6 +43,7 @@ type ChatResponse struct {
 // ChatChunk 定义对话片段。
 type ChatChunk struct {
 	Content string `json:"content"`
+	Error   string `json:"error,omitempty"`
 }
 
 // TokenUsage 定义令牌用量。

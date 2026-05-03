@@ -226,44 +226,7 @@ func (r *LLMAdminRoutes) getLLMStatus(ctx httpx.IContext) error {
 
 // getLLMMetrics 返回LLM指标。
 func (r *LLMAdminRoutes) getLLMMetrics(ctx httpx.IContext) error {
-	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
-	}
-	if err := rest.RejectLegacyQueryParams(ctx,
-		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
-	); err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-
-	params, err := rest.ParseQueryParams(ctx, llmMetricsQueryConfig)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	filter, err := decodeMetricsFilter(params.Filters)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	group, err := parseMetricsAggregateGroupBy(ctx)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	if group == "variant" && filter.ABTestID != nil {
-		rows, err := r.metrics.AggregateByVariant(ctx.RequestContext(), filter)
-		if err != nil {
-			return httpx.WriteError(ctx, err)
-		}
-		return httpx.WriteSuccess(ctx, map[string]any{
-			"variants": rows,
-		})
-	}
-
-	report, err := r.metrics.Aggregate(ctx.RequestContext(), filter)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	return httpx.WriteSuccess(ctx, map[string]any{
-		"report": report,
-	})
+	return writeLLMMetricsAggregate(ctx, r.metrics)
 }
 
 func decodeAuditLogFilter(filters query.QueryFilters) (repo.AuditLogFilter, error) {
@@ -326,9 +289,7 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM audit repo 未配置")
 	}
-	if err := rest.RejectLegacyQueryParams(ctx,
-		"user_id", "action", "status", "resource_type", "start", "end", "limit", "offset",
-	); err != nil {
+	if err := rejectLLMAuditLogLegacyListQueryParams(ctx); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 
@@ -346,12 +307,7 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-	return httpx.WriteSuccess(ctx, map[string]any{
-		"total":  total,
-		"list":   list,
-		"limit":  limit,
-		"offset": offset,
-	})
+	return writePaginatedList(ctx, list, total, opts.Page, opts.Size)
 }
 
 // getSecurityOverview 返回安全概览。

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -362,6 +363,9 @@ func TestChatServicePromptStreamAndBatch(t *testing.T) {
 	if _, err := svcNoPrompt.ChatWithPrompt(context.Background(), &PromptChatRequest{}); err == nil || !errors.Is(err, errors.Internal) {
 		t.Fatalf("expected prompt service missing error")
 	}
+	if _, err := svcNoPrompt.BatchChat(nil, []*ChatRequest{{UserID: 1}}); err == nil || !errors.Is(err, errors.InvalidInput) {
+		t.Fatalf("expected invalid input for nil batch ctx, got %v", err)
+	}
 
 	if _, err := svc.ChatWithPrompt(context.Background(), &PromptChatRequest{PromptName: "missing", PromptScope: entity.PromptScopeGlobal}); err == nil || !errors.Is(err, errors.NotFound) {
 		t.Fatalf("expected prompt not found error")
@@ -410,6 +414,52 @@ func TestChatServicePromptStreamAndBatch(t *testing.T) {
 	outs, err := svc.BatchChat(ctx, []*ChatRequest{{UserID: 3, Messages: []Message{{Content: "ok"}}}})
 	if err != nil || len(outs) != 1 {
 		t.Fatalf("expected single batch success, outs=%#v err=%v", outs, err)
+	}
+}
+
+func TestChatServiceStopCancelsStreamAndRejectsNewStream(t *testing.T) {
+	started := make(chan struct{})
+	var once sync.Once
+	manager := &testChatManager{
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
+			once.Do(func() { close(started) })
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+	svc := NewChatService(manager, nil, nil, nil, nil)
+
+	stream, err := svc.StreamChat(context.Background(), &ChatRequest{UserID: 1, Messages: []Message{{Content: "hold"}}})
+	if err != nil {
+		t.Fatalf("stream chat failed: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatalf("stream task did not start")
+	}
+
+	stopCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := svc.Stop(stopCtx); err != nil {
+		t.Fatalf("stop failed: %v", err)
+	}
+
+	timeout := time.After(time.Second)
+	for {
+		select {
+		case _, ok := <-stream:
+			if !ok {
+				goto closed
+			}
+		case <-timeout:
+			t.Fatalf("stream channel was not closed after stop")
+		}
+	}
+closed:
+
+	if _, err := svc.StreamChat(context.Background(), &ChatRequest{UserID: 1, Messages: []Message{{Content: "new"}}}); err == nil || !errors.Is(err, errors.Internal) {
+		t.Fatalf("expected stopped service to reject new stream, got %v", err)
 	}
 }
 

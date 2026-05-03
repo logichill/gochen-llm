@@ -117,10 +117,15 @@ func (m *providerManagerImpl) Start(ctx context.Context) error {
 	m.cancel = cancel
 	m.started = true
 
-	m.super.GoLoop(loopCtx, "health_loop", m.pingEvery, func(ctx context.Context) error {
+	if err := m.super.GoLoop(loopCtx, "health_loop", m.pingEvery, func(ctx context.Context) error {
 		m.runHealthCheckOnce(ctx)
 		return nil
-	})
+	}); err != nil {
+		cancel()
+		m.cancel = nil
+		m.started = false
+		return err
+	}
 
 	return nil
 }
@@ -129,6 +134,9 @@ func (m *providerManagerImpl) Start(ctx context.Context) error {
 func (m *providerManagerImpl) Stop(ctx context.Context) error {
 	if m == nil {
 		return nil
+	}
+	if ctx == nil {
+		return errors.NewCode(errors.InvalidInput, "ctx 不能为空")
 	}
 
 	m.lifecycleMu.Lock()
@@ -144,15 +152,12 @@ func (m *providerManagerImpl) Stop(ctx context.Context) error {
 		cancel()
 	}
 	if m.super != nil {
-		m.super.Stop()
-	}
-	if m.logger != nil {
-		if ctx != nil {
-			m.logger.Info(ctx, "[LLMProviderManager] stopped")
+		if err := m.super.StopWithTimeout(supervisorStopTimeout(ctx)); err != nil {
+			return errors.Wrap(err, errors.Timeout, "停止 LLM ProviderManager 超时")
 		}
 	}
-	if ctx == nil {
-		return errors.NewCode(errors.InvalidInput, "ctx 不能为空")
+	if m.logger != nil {
+		m.logger.Info(ctx, "[LLMProviderManager] stopped")
 	}
 	return nil
 }

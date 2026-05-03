@@ -21,24 +21,34 @@ type IChatService interface {
 	ChatWithPrompt(ctx context.Context, req *PromptChatRequest) (*ChatResponse, error)
 	StreamChat(ctx context.Context, req *ChatRequest) (<-chan *ChatChunk, error)
 	BatchChat(ctx context.Context, reqs []*ChatRequest) ([]*ChatResponse, error)
+	Stop(ctx context.Context) error
 }
 
 type chatServiceImpl struct {
-	manager     IProviderManager
-	prompt      IPromptService
-	safety      ISafetyService
-	metricsRepo repo.IMetricsRepo
-	costCalc    ICostCalculator
+	manager      IProviderManager
+	prompt       IPromptService
+	safety       ISafetyService
+	metricsRepo  repo.IMetricsRepo
+	costCalc     ICostCalculator
+	streamSuper  *runtime.TaskSupervisor
+	streamCtx    context.Context
+	cancelStream context.CancelFunc
+	lifecycleMu  sync.Mutex
+	stopped      bool
 }
 
 // NewChatService 创建对话服务。
 func NewChatService(manager IProviderManager, prompt IPromptService, safety ISafetyService, metrics repo.IMetricsRepo, costCalc ICostCalculator) IChatService {
+	streamCtx, cancelStream := context.WithCancel(context.Background())
 	return &chatServiceImpl{
-		manager:     manager,
-		prompt:      prompt,
-		safety:      safety,
-		metricsRepo: metrics,
-		costCalc:    costCalc,
+		manager:      manager,
+		prompt:       prompt,
+		safety:       safety,
+		metricsRepo:  metrics,
+		costCalc:     costCalc,
+		streamSuper:  runtime.NewTaskSupervisor("llm.stream_chat"),
+		streamCtx:    streamCtx,
+		cancelStream: cancelStream,
 	}
 }
 
@@ -264,17 +274,44 @@ func (s *chatServiceImpl) ChatWithPrompt(ctx context.Context, req *PromptChatReq
 
 // StreamChat 处理Stream对话。
 func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-chan *ChatChunk, error) {
+	if s == nil {
+		return nil, errors.NewCode(errors.Internal, "ChatService 未配置")
+	}
+	if ctx == nil {
+		return nil, errors.NewCode(errors.InvalidInput, "ctx 不能为空")
+	}
 	if req == nil {
 		return nil, errors.NewCode(errors.InvalidInput, "ChatRequest 不能为空")
 	}
 
 	ch := make(chan *ChatChunk, 8)
-	super := runtime.NewTaskSupervisor("llm.stream_chat")
-	super.Go(ctx, "stream", func(ctx context.Context) {
+	streamCtx, cancel := context.WithCancel(ctx)
+	var stopLink func() bool
+
+	s.lifecycleMu.Lock()
+	if s.stopped {
+		s.lifecycleMu.Unlock()
+		cancel()
+		return nil, errors.NewCode(errors.Internal, "ChatService 已停止，无法发起流式对话")
+	}
+	if s.streamSuper == nil {
+		s.streamSuper = runtime.NewTaskSupervisor("llm.stream_chat")
+	}
+	if s.streamCtx == nil {
+		s.streamCtx, s.cancelStream = context.WithCancel(context.Background())
+	}
+	stopLink = context.AfterFunc(s.streamCtx, cancel)
+	if err := s.streamSuper.Go(streamCtx, "stream", func(ctx context.Context) {
+		defer stopLink()
+		defer cancel()
 		defer close(ch)
 
 		resp, err := s.Chat(ctx, req)
 		if err != nil {
+			select {
+			case <-ctx.Done():
+			case ch <- &ChatChunk{Error: err.Error()}:
+			}
 			return
 		}
 
@@ -286,12 +323,22 @@ func (s *chatServiceImpl) StreamChat(ctx context.Context, req *ChatRequest) (<-c
 			case ch <- &ChatChunk{Content: seg}:
 			}
 		}
-	})
+	}); err != nil {
+		s.lifecycleMu.Unlock()
+		stopLink()
+		cancel()
+		close(ch)
+		return nil, err
+	}
+	s.lifecycleMu.Unlock()
 	return ch, nil
 }
 
 // BatchChat 处理批量对话。
 func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([]*ChatResponse, error) {
+	if ctx == nil {
+		return nil, errors.NewCode(errors.InvalidInput, "ctx 不能为空")
+	}
 	if len(reqs) == 0 {
 		return nil, nil
 	}
@@ -313,9 +360,9 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 
 	super := runtime.NewTaskSupervisor("llm.batch_chat")
 	for w := 0; w < concurrency; w++ {
-		wg.Add(1)
 		workerID := w
-		super.Go(ctx, fmt.Sprintf("worker_%d", workerID), func(ctx context.Context) {
+		wg.Add(1)
+		if err := super.Go(ctx, fmt.Sprintf("worker_%d", workerID), func(ctx context.Context) {
 			defer wg.Done()
 			for idx := range idxCh {
 				r := reqs[idx]
@@ -329,7 +376,11 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 				}
 				result[idx] = resp
 			}
-		})
+		}); err != nil {
+			wg.Done()
+			super.Stop()
+			return nil, err
+		}
 	}
 
 	wg.Wait()
@@ -339,6 +390,40 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 		return nil, err
 	}
 	return result, nil
+}
+
+// Stop 停止 ChatService 托管的流式任务。
+func (s *chatServiceImpl) Stop(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	if ctx == nil {
+		return errors.NewCode(errors.InvalidInput, "ctx 不能为空")
+	}
+
+	s.lifecycleMu.Lock()
+	if s.stopped {
+		s.lifecycleMu.Unlock()
+		return nil
+	}
+	s.stopped = true
+	cancelStream := s.cancelStream
+	streamSuper := s.streamSuper
+	s.streamSuper = nil
+	s.streamCtx = nil
+	s.cancelStream = nil
+	s.lifecycleMu.Unlock()
+
+	if cancelStream != nil {
+		cancelStream()
+	}
+	if streamSuper == nil {
+		return nil
+	}
+	if err := streamSuper.StopWithTimeout(supervisorStopTimeout(ctx)); err != nil {
+		return errors.Wrap(err, errors.Timeout, "停止 ChatService 流式任务超时")
+	}
+	return nil
 }
 
 // convertMessages 转换消息集合。
@@ -405,6 +490,17 @@ func chunkContent(text string, size int) []string {
 		chunks = append(chunks, string(runes[i:end]))
 	}
 	return chunks
+}
+
+func supervisorStopTimeout(ctx context.Context) time.Duration {
+	timeout := 5 * time.Second
+	if deadline, ok := ctx.Deadline(); ok {
+		timeout = time.Until(deadline)
+	}
+	if timeout <= 0 {
+		timeout = time.Millisecond
+	}
+	return timeout
 }
 
 // errorLabel 处理错误标签。

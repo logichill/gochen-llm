@@ -82,31 +82,14 @@ func (r *auditLogRepoImpl) List(ctx context.Context, filter AuditLogFilter, limi
 		return nil, 0, errors.Wrap(err, errors.Database, "创建审计日志 model 失败")
 	}
 
-	// 2. 统一收敛分页参数，避免过大或非法的请求直接透传到底层。
-	if limit <= 0 || limit > 200 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-
-	// 3. 先统计总数，再查询当前页数据。
-	total, err := model.Count(ctx, filterOptions...)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, errors.Database, "统计审计日志失败")
-	}
-
-	listOptions := append(filterOptions,
-		orm.WithOrderBy("created_at", true),
-		orm.WithLimit(limit),
-		orm.WithOffset(offset),
-	)
-
-	var list []*entity.AuditLog
-	if err := model.Find(ctx, &list, listOptions...); err != nil {
-		return nil, 0, errors.Wrap(err, errors.Database, "查询审计日志失败")
-	}
-	return list, total, nil
+	return findPagedList[entity.AuditLog](ctx, model, filterOptions, limit, offset, pagedListOptions{
+		DefaultLimit: 50,
+		MaxLimit:     200,
+		OrderBy:      "created_at",
+		Desc:         true,
+		CountError:   "统计审计日志失败",
+		ListError:    "查询审计日志失败",
+	})
 }
 
 // Increment 对指定用户和资源类型的限流窗口做累加更新。

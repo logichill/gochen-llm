@@ -59,74 +59,12 @@ func (r *MetricsRoutes) RegisterRoutes(group httpx.IRouteGroup) error {
 
 // aggregate 聚合数据。
 func (r *MetricsRoutes) aggregate(ctx httpx.IContext) error {
-	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
-	}
-	if err := rest.RejectLegacyQueryParams(ctx,
-		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
-	); err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-
-	params, err := rest.ParseQueryParams(ctx, llmMetricsQueryConfig)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	filter, err := decodeMetricsFilter(params.Filters)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	group, err := parseMetricsAggregateGroupBy(ctx)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	if group == "variant" && filter.ABTestID != nil {
-		rows, err := r.metrics.AggregateByVariant(ctx.RequestContext(), filter)
-		if err != nil {
-			return httpx.WriteError(ctx, err)
-		}
-		return httpx.WriteSuccess(ctx, map[string]any{"variants": rows})
-	}
-
-	report, err := r.metrics.Aggregate(ctx.RequestContext(), filter)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	return httpx.WriteSuccess(ctx, map[string]any{"report": report})
+	return writeLLMMetricsAggregate(ctx, r.metrics)
 }
 
 // list 列出数据。
 func (r *MetricsRoutes) list(ctx httpx.IContext) error {
-	if r.metrics == nil {
-		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
-	}
-	if err := rest.RejectLegacyQueryParams(ctx,
-		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end", "limit", "offset",
-	); err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-
-	opts, err := rest.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	filter, err := decodeMetricsFilter(opts.Filters)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-	limit, offset := opts.Size, opts.Offset()
-
-	list, total, err := r.metrics.List(ctx.RequestContext(), filter, limit, offset)
-	if err != nil {
-		return httpx.WriteError(ctx, err)
-	}
-
-	return httpx.WriteSuccess(ctx, map[string]any{
-		"total":  total,
-		"list":   list,
-		"limit":  limit,
-		"offset": offset,
-	})
+	return writeLLMMetricsList(ctx, r.metrics)
 }
 
 // significance 处理 significance。
@@ -134,9 +72,7 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rest.RejectLegacyQueryParams(ctx,
-		"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
-	); err != nil {
+	if err := rejectLLMMetricsLegacyQueryParams(ctx); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
 

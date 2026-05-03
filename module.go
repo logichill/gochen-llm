@@ -39,7 +39,10 @@ func NewModule() (module.IModule, error) {
 			router.NewLLMAdminRoutes,
 			router.NewMetricsRoutes,
 		).
-		RuntimeComponent(newProviderManagerRuntime).
+		RuntimeComponent(
+			newProviderManagerRuntime,
+			newChatServiceRuntime,
+		).
 		Build()
 }
 
@@ -57,4 +60,23 @@ func (r *providerManagerRuntime) Start(ctx context.Context) error {
 
 func (r *providerManagerRuntime) Stop(ctx context.Context) error {
 	return r.manager.Stop(ctx)
+}
+
+type chatServiceRuntime struct {
+	chat service.IChatService
+}
+
+func newChatServiceRuntime(chat service.IChatService) *chatServiceRuntime {
+	return &chatServiceRuntime{chat: chat}
+}
+
+func (r *chatServiceRuntime) Start(context.Context) error {
+	return nil
+}
+
+func (r *chatServiceRuntime) Stop(ctx context.Context) error {
+	if r == nil || r.chat == nil {
+		return nil
+	}
+	return r.chat.Stop(ctx)
 }

@@ -205,12 +205,12 @@ func TestMetricsRoutesList_UsesPaginatedResponseMessage(t *testing.T) {
 	if data["total"] != int64(1) {
 		t.Fatalf("expected total=1, got %#v", data)
 	}
-	if data["limit"] != 25 || data["offset"] != 25 {
-		t.Fatalf("expected limit/offset in data, got %#v", data)
+	if data["page"] != 2 || data["size"] != 25 {
+		t.Fatalf("expected page/size in data, got %#v", data)
 	}
-	list, ok := data["list"].([]*entity.Metrics)
+	list, ok := data["data"].([]*entity.Metrics)
 	if !ok || len(list) != 1 {
-		t.Fatalf("unexpected metrics list payload: %#v", data["list"])
+		t.Fatalf("unexpected metrics list payload: %#v", data["data"])
 	}
 }
 

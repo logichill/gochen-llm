@@ -1,6 +1,10 @@
 package service
 
-import "testing"
+import (
+	"testing"
+
+	"gochen/errors"
+)
 
 func TestProviderManager_runHealthCheckOnce_nilCtx_doesNotPanic(t *testing.T) {
 	pm, err := NewProviderManager(nil, nil)
@@ -19,4 +23,15 @@ func TestProviderManager_runHealthCheckOnce_nilCtx_doesNotPanic(t *testing.T) {
 	}()
 
 	impl.runHealthCheckOnce(nil)
+}
+
+func TestProviderManagerStopNilCtxReturnsInvalidInput(t *testing.T) {
+	pm, err := NewProviderManager(nil, nil)
+	if err != nil {
+		t.Fatalf("NewProviderManager: %v", err)
+	}
+	err = pm.Stop(nil)
+	if err == nil || !errors.Is(err, errors.InvalidInput) {
+		t.Fatalf("expected invalid input for nil stop ctx, got %v", err)
+	}
 }

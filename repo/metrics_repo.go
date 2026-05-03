@@ -288,29 +288,14 @@ func (r *metricsRepoImpl) List(ctx context.Context, filter entity.MetricsFilter,
 		return nil, 0, errors.Wrap(err, errors.Database, "创建 metrics model 失败")
 	}
 
-	if limit <= 0 || limit > 500 {
-		limit = 50
-	}
-	if offset < 0 {
-		offset = 0
-	}
-
-	total, err := model.Count(ctx, opts...)
-	if err != nil {
-		return nil, 0, errors.Wrap(err, errors.Database, "统计 LLM 指标总数失败")
-	}
-
-	listOpts := append(opts,
-		orm.WithOrderBy("created_at", true),
-		orm.WithLimit(limit),
-		orm.WithOffset(offset),
-	)
-
-	var list []*entity.Metrics
-	if err := model.Find(ctx, &list, listOpts...); err != nil {
-		return nil, 0, errors.Wrap(err, errors.Database, "查询 LLM 指标列表失败")
-	}
-	return list, total, nil
+	return findPagedList[entity.Metrics](ctx, model, opts, limit, offset, pagedListOptions{
+		DefaultLimit: 50,
+		MaxLimit:     500,
+		OrderBy:      "created_at",
+		Desc:         true,
+		CountError:   "统计 LLM 指标总数失败",
+		ListError:    "查询 LLM 指标列表失败",
+	})
 }
 
 // buildMetricsOptions 构造指标选项。
