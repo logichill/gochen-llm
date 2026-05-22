@@ -378,14 +378,14 @@ func (s *chatServiceImpl) BatchChat(ctx context.Context, reqs []*ChatRequest) ([
 			}
 		}); err != nil {
 			wg.Done()
-			super.Stop()
+			_ = super.StopWithinParentDeadline(ctx, supervisorStopFallback)
 			return nil, err
 		}
 	}
 
 	wg.Wait()
 	close(errCh)
-	super.Stop()
+	_ = super.StopWithinParentDeadline(ctx, supervisorStopFallback)
 	if err := <-errCh; err != nil {
 		return nil, err
 	}
@@ -402,16 +402,11 @@ func (s *chatServiceImpl) Stop(ctx context.Context) error {
 	}
 
 	s.lifecycleMu.Lock()
-	if s.stopped {
-		s.lifecycleMu.Unlock()
-		return nil
+	if !s.stopped {
+		s.stopped = true
 	}
-	s.stopped = true
 	cancelStream := s.cancelStream
 	streamSuper := s.streamSuper
-	s.streamSuper = nil
-	s.streamCtx = nil
-	s.cancelStream = nil
 	s.lifecycleMu.Unlock()
 
 	if cancelStream != nil {
@@ -420,9 +415,16 @@ func (s *chatServiceImpl) Stop(ctx context.Context) error {
 	if streamSuper == nil {
 		return nil
 	}
-	if err := streamSuper.StopWithTimeout(supervisorStopTimeout(ctx)); err != nil {
+	if err := streamSuper.StopWithinParentDeadline(ctx, supervisorStopFallback); err != nil {
 		return errors.Wrap(err, errors.Timeout, "停止 ChatService 流式任务超时")
 	}
+	s.lifecycleMu.Lock()
+	if s.streamSuper == streamSuper {
+		s.streamSuper = nil
+		s.streamCtx = nil
+		s.cancelStream = nil
+	}
+	s.lifecycleMu.Unlock()
 	return nil
 }
 
@@ -492,16 +494,7 @@ func chunkContent(text string, size int) []string {
 	return chunks
 }
 
-func supervisorStopTimeout(ctx context.Context) time.Duration {
-	timeout := 5 * time.Second
-	if deadline, ok := ctx.Deadline(); ok {
-		timeout = time.Until(deadline)
-	}
-	if timeout <= 0 {
-		timeout = time.Millisecond
-	}
-	return timeout
-}
+const supervisorStopFallback = 5 * time.Second
 
 // errorLabel 处理错误标签。
 func errorLabel(err error) string {
