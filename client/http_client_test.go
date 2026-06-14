@@ -97,15 +97,14 @@ func TestNewClient_ValidationAndUnsupported(t *testing.T) {
 	}
 }
 
-func TestHTTPClient_DoRequest_Upstream4xxErrorsKeepDeterministicCodes(t *testing.T) {
+func TestHTTPClient_DoRequest_UpstreamAuthAndResourceStatusesAreDependencyFailures(t *testing.T) {
 	tests := []struct {
 		status int
 		code   errors.ErrorCode
 	}{
-		{status: http.StatusBadRequest, code: errors.InvalidInput},
-		{status: http.StatusUnauthorized, code: errors.Unauthorized},
-		{status: http.StatusForbidden, code: errors.Forbidden},
-		{status: http.StatusNotFound, code: errors.NotFound},
+		{status: http.StatusUnauthorized, code: errors.ServiceUnavailable},
+		{status: http.StatusForbidden, code: errors.ServiceUnavailable},
+		{status: http.StatusNotFound, code: errors.ServiceUnavailable},
 	}
 
 	for _, tt := range tests {
@@ -126,6 +125,32 @@ func TestHTTPClient_DoRequest_Upstream4xxErrorsKeepDeterministicCodes(t *testing
 			if !errors.Is(err, tt.code) {
 				t.Fatalf("expected %s, got %v", tt.code, err)
 			}
+			appErr, ok := err.(*errors.AppError)
+			if !ok {
+				t.Fatalf("expected AppError, got %T", err)
+			}
+			if got := appErr.Details()["upstream_status"]; got != tt.status {
+				t.Fatalf("expected upstream_status=%d, got %#v", tt.status, got)
+			}
 		})
+	}
+}
+
+func TestHTTPClient_DoRequest_UpstreamBadRequestKeepsCallerError(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = fmt.Fprint(w, `{"error":"bad request"}`)
+	}))
+	defer ts.Close()
+
+	hc := newHTTPClient(&Config{Provider: ProviderGemini, APIKey: "x"})
+	_, err := hc.doRequest(context.Background(), ts.URL, map[string]any{"x": 1}, func([]byte) (*ChatResponse, error) {
+		return &ChatResponse{Content: "ok"}, nil
+	})
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !errors.Is(err, errors.InvalidInput) {
+		t.Fatalf("expected InvalidInput, got %v", err)
 	}
 }

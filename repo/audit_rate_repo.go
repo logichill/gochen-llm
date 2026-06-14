@@ -207,7 +207,7 @@ func (r *rateLimitRepoImpl) SumSince(ctx context.Context, resourceType string, s
 	if err != nil {
 		return 0, errors.Wrap(err, errors.Database, "创建限流 model 失败")
 	}
-	if err := model.First(ctx, &row, append(opts, orm.WithSelect("COALESCE(SUM(request_count), 0) as total"))...); err != nil {
+	if err := model.First(ctx, &row, append(opts, orm.WithSelectExprUnsafe("COALESCE(SUM(request_count), 0) as total"))...); err != nil {
 		return 0, errors.Wrap(err, errors.Database, "统计限流请求数失败")
 	}
 	return row.Total, nil

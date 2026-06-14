@@ -30,12 +30,10 @@ func newUpstreamStatusError(provider string, statusCode int, body []byte) error 
 		errCode = errors.Timeout
 	case statusCode == 429:
 		errCode = errors.TooManyRequests
-	case statusCode == 401:
-		errCode = errors.Unauthorized
-	case statusCode == 403:
-		errCode = errors.Forbidden
-	case statusCode == 404:
-		errCode = errors.NotFound
+	case statusCode == 401 || statusCode == 403 || statusCode == 404:
+		// 上游 provider 的鉴权失败/资源不存在是其内部状态，不透传为本服务调用方的
+		// 授权决策，统一归为 ServiceUnavailable（保持默认 errCode）。
+		errCode = errors.ServiceUnavailable
 	case statusCode == 409:
 		errCode = errors.Conflict
 	case statusCode == 422:

@@ -15,6 +15,7 @@ type testPromptRepo struct {
 	upsertFn        func(ctx context.Context, tmpl *entity.PromptTemplate) error
 	getFn           func(ctx context.Context, id int64) (*entity.PromptTemplate, error)
 	findEffectiveFn func(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
+	listByFilterFn  func(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error)
 	listFn          func(ctx context.Context, offset, limit int) ([]*entity.PromptTemplate, error)
 	countFn         func(ctx context.Context) (int64, error)
 }
@@ -40,6 +41,16 @@ func (r *testPromptRepo) FindEffective(ctx context.Context, name string, scope e
 		return r.findEffectiveFn(ctx, name, scope, scopeID)
 	}
 	return nil, nil
+}
+func (r *testPromptRepo) ListByFilter(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
+	if r.listByFilterFn != nil {
+		return r.listByFilterFn(ctx, filter)
+	}
+	total, err := r.Count(ctx)
+	if err != nil || total <= 0 {
+		return nil, err
+	}
+	return r.List(ctx, 0, int(total))
 }
 func (r *testPromptRepo) List(ctx context.Context, offset, limit int) ([]*entity.PromptTemplate, error) {
 	if r.listFn != nil {
@@ -174,15 +185,28 @@ func TestPromptServiceSaveAndVersionLifecycle(t *testing.T) {
 		t.Fatalf("expected invalid input when saving nil prompt, got %v", err)
 	}
 
-	tmpl := &entity.PromptTemplate{Name: "n", Content: "c"}
+	tmpl := &entity.PromptTemplate{Name: " n ", Category: " ", Content: "\n keep whitespace \n"}
 	if err := svc.SavePrompt(context.Background(), tmpl); err != nil {
 		t.Fatalf("save prompt failed: %v", err)
 	}
 	if tmpl.Scope != entity.PromptScopeGlobal || tmpl.Category != "system" || tmpl.Priority != 100 || tmpl.Version != 1 {
 		t.Fatalf("expected defaults applied, got %+v", tmpl)
 	}
+	if tmpl.Name != "n" || tmpl.Content != "\n keep whitespace \n" {
+		t.Fatalf("expected normalized name and preserved content, got name=%q content=%q", tmpl.Name, tmpl.Content)
+	}
+	if len(upserted) == 0 || upserted[0].Content != "\n keep whitespace \n" || upserted[0].Category != "system" {
+		t.Fatalf("expected upsert to receive preserved content and default category, got %#v", upserted)
+	}
 	if len(savedVersions) == 0 {
 		t.Fatalf("expected save version called")
+	}
+
+	if err := svc.SavePrompt(context.Background(), &entity.PromptTemplate{Name: " ", Content: "c"}); err == nil || !errors.Is(err, errors.Validation) {
+		t.Fatalf("expected validation error for blank prompt name, got %v", err)
+	}
+	if err := svc.SavePrompt(context.Background(), &entity.PromptTemplate{Name: "n", Content: "c", Scope: entity.PromptScopeProject}); err == nil || !errors.Is(err, errors.Validation) {
+		t.Fatalf("expected validation error for missing project scope id, got %v", err)
 	}
 
 	if _, err := svc.CreateVersion(context.Background(), 0, "bad"); err == nil || !errors.Is(err, errors.InvalidInput) {
@@ -225,8 +249,7 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 
 	abTest := &entity.ABTest{ID: 1, TemplateAID: 11, TemplateBID: 22, TrafficSplit: 30, Status: "running"}
 	repoStub := &testPromptRepo{
-		countFn: func(ctx context.Context) (int64, error) { return 1, nil },
-		listFn: func(ctx context.Context, offset, limit int) ([]*entity.PromptTemplate, error) {
+		listByFilterFn: func(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
 			return []*entity.PromptTemplate{{ID: 11, Name: "a"}}, nil
 		},
 		upsertFn: func(ctx context.Context, tmpl *entity.PromptTemplate) error {
@@ -332,5 +355,43 @@ func TestPromptServiceImportExportAndABFlow(t *testing.T) {
 
 	if updatedTest == nil || updatedTest.ResultJSON == "" {
 		t.Fatalf("expected ab test result updated")
+	}
+}
+
+func TestPromptServiceListPromptsUsesRepositoryFilter(t *testing.T) {
+	enabled := true
+	scope := entity.PromptScopeProject
+	scopeID := int64(42)
+	var got repo.PromptFilter
+	repoStub := &testPromptRepo{
+		listByFilterFn: func(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
+			got = filter
+			return []*entity.PromptTemplate{{ID: 1, Name: filter.Name}}, nil
+		},
+		countFn: func(ctx context.Context) (int64, error) {
+			t.Fatal("ListPrompts must not Count before filtering")
+			return 0, nil
+		},
+		listFn: func(ctx context.Context, offset, limit int) ([]*entity.PromptTemplate, error) {
+			t.Fatal("ListPrompts must not load all prompts before filtering")
+			return nil, nil
+		},
+	}
+	svc := NewPromptService(repoStub, &testPromptVersionRepo{}, &testABTestRepo{})
+
+	items, err := svc.ListPrompts(context.Background(), repo.PromptFilter{
+		Name:    "audit",
+		Scope:   &scope,
+		ScopeID: &scopeID,
+		Enabled: &enabled,
+	})
+	if err != nil {
+		t.Fatalf("ListPrompts failed: %v", err)
+	}
+	if len(items) != 1 || items[0].Name != "audit" {
+		t.Fatalf("unexpected prompts: %#v", items)
+	}
+	if got.Name != "audit" || got.Scope == nil || *got.Scope != scope || got.ScopeID == nil || *got.ScopeID != scopeID || got.Enabled == nil || !*got.Enabled {
+		t.Fatalf("filter was not passed through: %#v", got)
 	}
 }

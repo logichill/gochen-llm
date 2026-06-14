@@ -99,6 +99,9 @@ func (s *promptServiceImpl) SavePrompt(ctx context.Context, tmpl *entity.PromptT
 	if tmpl == nil {
 		return errors.NewCode(errors.InvalidInput, "提示词模板不能为空")
 	}
+	tmpl.Name = strings.TrimSpace(tmpl.Name)
+	tmpl.Category = strings.TrimSpace(tmpl.Category)
+	tmpl.Scope = entity.PromptScope(strings.TrimSpace(string(tmpl.Scope)))
 	if tmpl.Scope == "" {
 		tmpl.Scope = entity.PromptScopeGlobal
 	}
@@ -110,6 +113,9 @@ func (s *promptServiceImpl) SavePrompt(ctx context.Context, tmpl *entity.PromptT
 	}
 	if tmpl.Version == 0 {
 		tmpl.Version = 1
+	}
+	if err := tmpl.Validate(); err != nil {
+		return err
 	}
 
 	if err := s.templates.Upsert(ctx, tmpl); err != nil {
@@ -134,41 +140,7 @@ func (s *promptServiceImpl) ListPrompts(ctx context.Context, filter repo.PromptF
 
 // listFilteredPrompts 列出Filtered提示词列表。
 func (s *promptServiceImpl) listFilteredPrompts(ctx context.Context, filter repo.PromptFilter) ([]*entity.PromptTemplate, error) {
-	total, err := s.templates.Count(ctx)
-	if err != nil {
-		return nil, err
-	}
-	limit := int(total)
-	if limit <= 0 {
-		return []*entity.PromptTemplate{}, nil
-	}
-	items, err := s.templates.List(ctx, 0, limit)
-	if err != nil {
-		return nil, err
-	}
-	filtered := make([]*entity.PromptTemplate, 0, len(items))
-	for _, tmpl := range items {
-		if tmpl == nil {
-			continue
-		}
-		if filter.Name != "" && tmpl.Name != filter.Name {
-			continue
-		}
-		if filter.Category != "" && tmpl.Category != filter.Category {
-			continue
-		}
-		if filter.Scope != nil && tmpl.Scope != *filter.Scope {
-			continue
-		}
-		if filter.ScopeID != nil && tmpl.ScopeID != *filter.ScopeID {
-			continue
-		}
-		if filter.Enabled != nil && tmpl.Enabled != *filter.Enabled {
-			continue
-		}
-		filtered = append(filtered, tmpl)
-	}
-	return filtered, nil
+	return s.templates.ListByFilter(ctx, filter)
 }
 
 // CreateVersion 创建版本。

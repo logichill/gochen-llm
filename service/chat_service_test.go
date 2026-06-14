@@ -463,6 +463,60 @@ closed:
 	}
 }
 
+func TestStreamChatDeliversErrorChunk(t *testing.T) {
+	manager := &testChatManager{
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
+			return nil, errors.NewCode(errors.Internal, "provider failed")
+		},
+	}
+	svc := NewChatService(manager, nil, nil, nil, nil)
+
+	stream, err := svc.StreamChat(context.Background(), &ChatRequest{UserID: 1, Messages: []Message{{Content: "fail"}}})
+	if err != nil {
+		t.Fatalf("stream chat failed: %v", err)
+	}
+	chunk, ok := <-stream
+	if !ok || chunk == nil || !strings.Contains(chunk.Error, "provider failed") {
+		t.Fatalf("expected error chunk, got %#v ok=%v", chunk, ok)
+	}
+	if _, ok := <-stream; ok {
+		t.Fatalf("expected stream to close after error chunk")
+	}
+}
+
+func TestChatServiceStopTimeoutCleansStateForRepeatedStop(t *testing.T) {
+	started := make(chan struct{})
+	release := make(chan struct{})
+	var once sync.Once
+	manager := &testChatManager{
+		chatForUserFn: func(ctx context.Context, userID int64, req *client.ChatRequest) (*ChatExecution, error) {
+			once.Do(func() { close(started) })
+			<-release
+			return nil, ctx.Err()
+		},
+	}
+	svc := NewChatService(manager, nil, nil, nil, nil)
+	defer close(release)
+
+	if _, err := svc.StreamChat(context.Background(), &ChatRequest{UserID: 1, Messages: []Message{{Content: "hold"}}}); err != nil {
+		t.Fatalf("stream chat failed: %v", err)
+	}
+	select {
+	case <-started:
+	case <-time.After(time.Second):
+		t.Fatalf("stream task did not start")
+	}
+
+	stopCtx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
+	defer cancel()
+	if err := svc.Stop(stopCtx); err == nil || !errors.Is(err, errors.Timeout) {
+		t.Fatalf("expected timeout on first stop, got %v", err)
+	}
+	if err := svc.Stop(context.Background()); err != nil {
+		t.Fatalf("expected repeated stop after timeout to be idempotent, got %v", err)
+	}
+}
+
 func TestChatHelpers(t *testing.T) {
 	msgs := []Message{{Role: "", Content: "a"}, {Role: "assistant", Content: "b"}}
 	converted := convertMessages(msgs)

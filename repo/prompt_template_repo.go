@@ -27,6 +27,7 @@ type IPromptTemplateRepository interface {
 	domaincrud.IQueryRepository[*entity.PromptTemplate, int64]
 	Upsert(ctx context.Context, tmpl *entity.PromptTemplate) error
 	FindEffective(ctx context.Context, name string, scope entity.PromptScope, scopeID int64) (*entity.PromptTemplate, error)
+	ListByFilter(ctx context.Context, filter PromptFilter) ([]*entity.PromptTemplate, error)
 }
 
 type promptTemplateRepoImpl struct {
@@ -144,23 +145,58 @@ func (r *promptTemplateRepoImpl) FindEffective(ctx context.Context, name string,
 		return nil, nil
 	}
 	sort.Slice(templates, func(i, j int) bool {
-		rank := func(t *entity.PromptTemplate) int {
-			if t.Scope == scope && t.ScopeID == scopeID {
-				return 1
-			}
-			if t.Scope == entity.PromptScopeGlobal && t.ScopeID == 0 {
-				return 2
-			}
-			return 3
-		}
-		ri, rj := rank(templates[i]), rank(templates[j])
-		if ri != rj {
-			return ri < rj
-		}
-		if templates[i].Priority != templates[j].Priority {
-			return templates[i].Priority < templates[j].Priority
-		}
-		return templates[i].Version > templates[j].Version
+		return effectivePromptLess(templates[i], templates[j], scope, scopeID)
 	})
 	return templates[0], nil
+}
+
+func effectivePromptLess(a *entity.PromptTemplate, b *entity.PromptTemplate, scope entity.PromptScope, scopeID int64) bool {
+	rank := func(t *entity.PromptTemplate) int {
+		if t.Scope == scope && t.ScopeID == scopeID {
+			return 1
+		}
+		if t.Scope == entity.PromptScopeGlobal && t.ScopeID == 0 {
+			return 2
+		}
+		return 3
+	}
+	ra, rb := rank(a), rank(b)
+	if ra != rb {
+		return ra < rb
+	}
+	if a.Priority != b.Priority {
+		return a.Priority < b.Priority
+	}
+	return a.Version > b.Version
+}
+
+// ListByFilter 按过滤条件在数据库侧查询提示词模板。
+func (r *promptTemplateRepoImpl) ListByFilter(ctx context.Context, filter PromptFilter) ([]*entity.PromptTemplate, error) {
+	model, err := r.templateModel.model(r.orm)
+	if err != nil {
+		return nil, errors.Wrap(err, errors.Database, "创建提示词模板 model 失败")
+	}
+	opts := make([]orm.QueryOption, 0, 5)
+	if filter.Name != "" {
+		opts = append(opts, orm.WithWhere("name = ?", filter.Name))
+	}
+	if filter.Category != "" {
+		opts = append(opts, orm.WithWhere("category = ?", filter.Category))
+	}
+	if filter.Scope != nil {
+		opts = append(opts, orm.WithWhere("scope = ?", *filter.Scope))
+	}
+	if filter.ScopeID != nil {
+		opts = append(opts, orm.WithWhere("scope_id = ?", *filter.ScopeID))
+	}
+	if filter.Enabled != nil {
+		opts = append(opts, orm.WithWhere("enabled = ?", *filter.Enabled))
+	}
+	opts = append(opts, orm.WithOrderBy("updated_at", true), orm.WithOrderBy("id", false))
+
+	var templates []*entity.PromptTemplate
+	if err := model.Find(ctx, &templates, opts...); err != nil {
+		return nil, errors.Wrap(err, errors.Database, "查询提示词模板列表失败")
+	}
+	return templates, nil
 }

@@ -1,6 +1,11 @@
 package entity
 
-import "time"
+import (
+	"strings"
+	"time"
+
+	"gochen/errors"
+)
 
 // PromptScope 定义提示词模板的作用域维度
 // 用于区分全局、组织、项目与用户级的配置边界。
@@ -57,7 +62,7 @@ type PromptTemplate struct {
 	ParentID *int64
 
 	// Priority 优先级
-	// 数值越小优先级越高（或越低，需结合业务逻辑确认，通常用于同名模板在不同作用域的覆盖策略）。
+	// 数值越小优先级越高；同名、同作用域层级模板按 Priority 升序、Version 降序选择。
 	// 默认 100。
 	Priority int `gorm:"not null;default:100"`
 
@@ -94,7 +99,31 @@ func (p *PromptTemplate) SetID(id int64) { p.ID = id }
 // Validate 校验输入。
 func (p *PromptTemplate) Validate() error {
 	if p == nil {
-		return nil
+		return errors.NewCode(errors.InvalidInput, "提示词模板不能为空")
+	}
+	p.Name = strings.TrimSpace(p.Name)
+	p.Category = strings.TrimSpace(p.Category)
+	p.Scope = PromptScope(strings.TrimSpace(string(p.Scope)))
+	if p.Name == "" {
+		return errors.NewCode(errors.Validation, "提示词模板名称不能为空")
+	}
+	if p.Category == "" {
+		return errors.NewCode(errors.Validation, "提示词模板分类不能为空")
+	}
+	if strings.TrimSpace(p.Content) == "" {
+		return errors.NewCode(errors.Validation, "提示词模板内容不能为空")
+	}
+	switch p.Scope {
+	case PromptScopeGlobal:
+		if p.ScopeID != 0 {
+			return errors.NewCode(errors.Validation, "全局提示词模板 scope_id 必须为 0")
+		}
+	case PromptScopeOrg, PromptScopeProject, PromptScopeUser:
+		if p.ScopeID <= 0 {
+			return errors.NewCode(errors.Validation, "提示词模板 scope_id 必须大于 0")
+		}
+	default:
+		return errors.NewCode(errors.Validation, "提示词模板 scope 无效")
 	}
 	return nil
 }

@@ -62,7 +62,7 @@ func (r *metricsRepoImpl) Aggregate(ctx context.Context, filter entity.MetricsFi
 		"SUM(cost_usd) as total_cost_usd",
 	}
 
-	opts := append(buildMetricsOptions(filter), orm.WithSelect(selects...))
+	opts := append(buildMetricsOptions(filter), orm.WithSelectExprUnsafe(selects...))
 
 	model, err := r.model.model(r.orm)
 	if err != nil {
@@ -107,7 +107,7 @@ func (r *metricsRepoImpl) AggregateByVariant(ctx context.Context, filter entity.
 		"SUM(cost_usd) as total_cost_usd",
 	}
 
-	queryOpts := append(opts, orm.WithSelect(selects...), orm.WithGroupBy("ab_variant"))
+	queryOpts := append(opts, orm.WithSelectExprUnsafe(selects...), orm.WithGroupBy("ab_variant"))
 
 	model, err := r.model.model(r.orm)
 	if err != nil {
@@ -207,7 +207,7 @@ func (r *metricsRepoImpl) queryVariantCount(ctx context.Context, filter entity.M
 	var rows []row
 
 	opts := append(buildMetricsOptions(filter),
-		orm.WithSelect("ab_variant as variant", "COUNT(*) as count"),
+		orm.WithSelectExprUnsafe("ab_variant as variant", "COUNT(*) as count"),
 		orm.WithGroupBy("ab_variant"),
 	)
 

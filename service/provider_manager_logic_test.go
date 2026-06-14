@@ -310,6 +310,43 @@ func TestProviderManagerChatForUserPreservesDependencyFailureCode(t *testing.T) 
 	}
 }
 
+func TestProviderManagerChatForUser_FailoverOnUpstreamAuthStatusDependencyFailure(t *testing.T) {
+	upstreamErr := errors.NewCode(errors.ServiceUnavailable, "openai 上游响应错误").
+		WithContext("provider", "openai").
+		WithContext("upstream_status", 401)
+	failClient := &fakeLLMClient{err: upstreamErr}
+	successClient := &fakeLLMClient{resp: &client.ChatResponse{Content: "ok"}}
+
+	first := newTestEndpoint(100, 100, 30)
+	first.client = failClient
+	first.cfg.Name = "first"
+	first.cfg.Provider = "openai"
+	second := newTestEndpoint(100, 100, 30)
+	second.client = successClient
+	second.cfg.Name = "second"
+	second.cfg.Provider = "gemini"
+
+	m := &providerManagerImpl{}
+	m.endpoints.Store([]*endpointState{first, second})
+
+	result, err := m.ChatForUser(context.Background(), 1, &client.ChatRequest{Messages: []client.ChatMessage{{Role: "user", Content: "hi"}}})
+	if err != nil {
+		t.Fatalf("expected failover success, got %v", err)
+	}
+	if result == nil || result.Response == nil || result.Response.Content != "ok" {
+		t.Fatalf("unexpected response: %#v", result)
+	}
+	if got := atomic.LoadInt32(&failClient.calls); got != 1 {
+		t.Fatalf("expected first client called once, got %d", got)
+	}
+	if got := atomic.LoadInt32(&successClient.calls); got != 1 {
+		t.Fatalf("expected second client called once, got %d", got)
+	}
+	if got := atomic.LoadInt64(&first.cooldownUntil); got == 0 {
+		t.Fatalf("expected upstream dependency failure to trigger cooldown")
+	}
+}
+
 func TestProviderManagerChatForUser_DoesNotFailoverOnDeterministic4xx(t *testing.T) {
 	badReqClient := &fakeLLMClient{err: errors.NewCode(errors.InvalidInput, "bad request")}
 	successClient := &fakeLLMClient{resp: &client.ChatResponse{Content: "ok"}}

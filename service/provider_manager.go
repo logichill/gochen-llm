@@ -156,6 +156,13 @@ func (m *providerManagerImpl) Stop(ctx context.Context) error {
 	}
 	if super != nil {
 		if err := super.StopWithinParentDeadline(ctx, supervisorStopFallback); err != nil {
+			m.lifecycleMu.Lock()
+			if m.super == super {
+				m.started = false
+				m.cancel = nil
+				m.super = nil
+			}
+			m.lifecycleMu.Unlock()
 			return errors.Wrap(err, errors.Timeout, "停止 LLM ProviderManager 超时")
 		}
 	}

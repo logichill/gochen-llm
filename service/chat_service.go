@@ -416,6 +416,13 @@ func (s *chatServiceImpl) Stop(ctx context.Context) error {
 		return nil
 	}
 	if err := streamSuper.StopWithinParentDeadline(ctx, supervisorStopFallback); err != nil {
+		s.lifecycleMu.Lock()
+		if s.streamSuper == streamSuper {
+			s.streamSuper = nil
+			s.streamCtx = nil
+			s.cancelStream = nil
+		}
+		s.lifecycleMu.Unlock()
 		return errors.Wrap(err, errors.Timeout, "停止 ChatService 流式任务超时")
 	}
 	s.lifecycleMu.Lock()
