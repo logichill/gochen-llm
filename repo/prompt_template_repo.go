@@ -37,11 +37,11 @@ type promptTemplateRepoImpl struct {
 }
 
 // NewPromptTemplateRepo 创建提示词Template仓储。
-func NewPromptTemplateRepo(o orm.IOrm) (IPromptTemplateRepository, error) {
+func NewPromptTemplateRepo(o orm.IOrm, idGenerator ident.IGenerator[int64]) (IPromptTemplateRepository, error) {
 	base, err := repo.NewRepo[*entity.PromptTemplate, int64](
 		o,
 		(entity.PromptTemplate{}).TableName(),
-		repo.WithIDGenerator[*entity.PromptTemplate, int64](ident.DefaultInt64Generator()),
+		repo.WithIDGenerator[*entity.PromptTemplate, int64](idGenerator),
 	)
 	if err != nil {
 		return nil, err
