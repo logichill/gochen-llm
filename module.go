@@ -7,15 +7,18 @@ import (
 	"gochen-llm/repo"
 	"gochen-llm/router"
 	"gochen-llm/service"
-	"gochen/host"
-	"gochen/host/module"
+	"gochen-runtime/host"
+	auth "gochen-runtime/host/authz"
+	"gochen-runtime/host/module"
 )
 
 // NewModule 创建模块。
 func NewModule() (module.IModule, error) {
 	return host.Module("llm").
 		Name("LLM").
-		PermissionDefinitions(llmauthz.PermissionDefinitions()...).
+		Extension(auth.Catalog{
+			PermissionDefinitions: llmauthz.PermissionDefinitions(),
+		}).
 		Provide(
 			// Repos
 			repo.NewProviderConfigRepo,

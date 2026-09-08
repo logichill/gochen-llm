@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"gochen/errors"
-	runtime "gochen/task"
+	runtime "gochen/process/task"
 )
 
 func TestProviderManager_runHealthCheckOnce_nilCtx_doesNotPanic(t *testing.T) {

@@ -15,9 +15,9 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
+	"gochen-runtime/http/request"
 	"gochen/errors"
 	"gochen/httpx"
-	"gochen/httpx/request"
 )
 
 type routerTestContext struct {
@@ -233,7 +233,7 @@ func TestLLMAdminRoutesMarkConversion_RejectsLegacyConversionType(t *testing.T) 
 	}
 }
 
-func TestMetricsRoutesList_RejectsLegacyFlatQueryContract(t *testing.T) {
+func TestMetricsRoutesList_RejectsUnknownFlatQueryParams(t *testing.T) {
 	routes := NewMetricsRoutes(&stubMetricsRepo{})
 	ctx := newRouterTestContext(http.MethodGet, "/admin/llm/metrics/list?provider=openai&limit=10")
 
@@ -245,7 +245,7 @@ func TestMetricsRoutesList_RejectsLegacyFlatQueryContract(t *testing.T) {
 	}
 }
 
-func TestLLMAdminRoutesGetLLMMetrics_RejectsLegacyFlatQueryContract(t *testing.T) {
+func TestLLMAdminRoutesGetLLMMetrics_RejectsUnknownFlatQueryParams(t *testing.T) {
 	routes := NewLLMAdminRoutes(nil, nil, &stubMetricsRepo{}, nil, nil, nil, nil)
 	ctx := newRouterTestContext(http.MethodGet, "/admin/llm/metrics?provider=openai")
 
@@ -257,7 +257,7 @@ func TestLLMAdminRoutesGetLLMMetrics_RejectsLegacyFlatQueryContract(t *testing.T
 	}
 }
 
-func TestLLMAdminRoutesListAuditLogs_RejectsLegacyFlatQueryContract(t *testing.T) {
+func TestLLMAdminRoutesListAuditLogs_RejectsUnknownFlatQueryParams(t *testing.T) {
 	routes := NewLLMAdminRoutes(nil, nil, nil, nil, &stubAuditLogRepo{}, nil, nil)
 	ctx := newRouterTestContext(http.MethodGet, "/admin/llm/audit?action=reload&offset=10")
 

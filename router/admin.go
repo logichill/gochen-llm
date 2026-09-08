@@ -6,9 +6,9 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen-llm/service"
-	"gochen/api/rest"
-	"gochen/db/query"
-	"gochen/db/query/querybind"
+	"gochen-runtime/api/rest"
+	"gochen/app/query"
+	"gochen/app/query/querybind"
 	"gochen/errors"
 	"gochen/httpx"
 )
@@ -289,10 +289,10 @@ func (r *LLMAdminRoutes) listAuditLogs(ctx httpx.IContext) error {
 	if r.auditRepo == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM audit repo 未配置")
 	}
-	if err := rejectLLMAuditLogLegacyListQueryParams(ctx); err != nil {
+
+	if err := rejectUnknownQueryParams(ctx); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-
 	opts, err := rest.ParsePaginationOptions(ctx, llmAuditLogQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)

@@ -5,10 +5,10 @@ import (
 	"testing"
 
 	llmauthz "gochen-llm/moduleauthz"
-	auth "gochen/auth"
-	hostconfig "gochen/host/config"
-	"gochen/host/module"
-	moduleruntime "gochen/host/module/runtime"
+	auth "gochen-runtime/host/authz"
+	hostconfig "gochen-runtime/host/config"
+	"gochen-runtime/host/module"
+	moduleruntime "gochen-runtime/host/module/runtime"
 )
 
 func TestNewModule_RegistersPermissionCatalog(t *testing.T) {
@@ -16,7 +16,7 @@ func TestNewModule_RegistersPermissionCatalog(t *testing.T) {
 	moduleCtor := func() (module.IModule, error) {
 		return NewModule()
 	}
-	host := moduleruntime.NewHost([]module.ModuleCtor{moduleCtor}, hostconfig.WithAuthzRegistry(registry))
+	host := moduleruntime.NewHost([]module.ModuleCtor{moduleCtor}, hostconfig.WithCatalogRegistrar(auth.NewCatalogRegistrar(registry)))
 
 	if err := host.Prepare(context.Background()); err != nil {
 		t.Fatalf("Prepare: %v", err)

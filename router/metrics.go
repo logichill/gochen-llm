@@ -5,9 +5,9 @@ import (
 
 	"gochen-llm/entity"
 	"gochen-llm/repo"
-	"gochen/api/rest"
-	"gochen/db/query"
-	"gochen/db/query/querybind"
+	"gochen-runtime/api/rest"
+	"gochen/app/query"
+	"gochen/app/query/querybind"
 	"gochen/errors"
 	"gochen/httpx"
 )
@@ -72,10 +72,10 @@ func (r *MetricsRoutes) significance(ctx httpx.IContext) error {
 	if r.metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rejectLLMMetricsLegacyQueryParams(ctx); err != nil {
+
+	if err := rejectUnknownQueryParams(ctx); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-
 	params, err := rest.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)

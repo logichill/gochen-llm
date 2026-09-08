@@ -2,33 +2,38 @@ package router
 
 import (
 	"math"
+	"slices"
+	"sort"
+	"strings"
 
 	"gochen-llm/repo"
-	"gochen/api/rest"
+	"gochen-runtime/api/rest"
 	"gochen/errors"
 	"gochen/httpx"
 )
 
-var llmMetricsLegacyQueryParams = []string{
-	"provider", "model", "status", "ab_variant", "outcome", "conversion_type", "ab_test_id", "user_id", "start", "end",
+// queryDSLParams 是 rest 查询 DSL 认识的全部参数名；其余一律视为已废弃的扁平参数。
+var queryDSLParams = map[string]struct{}{
+	"filter": {}, "sorts": {}, "fields": {}, "page": {}, "size": {}, "page_size": {},
 }
 
-var llmMetricsLegacyListQueryParams = appendLegacyQueryParams(llmMetricsLegacyQueryParams, "limit", "offset")
-
-var llmAuditLogLegacyListQueryParams = []string{
-	"user_id", "action", "status", "resource_type", "start", "end", "limit", "offset",
-}
-
-func rejectLLMMetricsLegacyQueryParams(ctx httpx.IContext) error {
-	return rest.RejectLegacyQueryParams(ctx, llmMetricsLegacyQueryParams...)
-}
-
-func rejectLLMMetricsLegacyListQueryParams(ctx httpx.IContext) error {
-	return rest.RejectLegacyQueryParams(ctx, llmMetricsLegacyListQueryParams...)
-}
-
-func rejectLLMAuditLogLegacyListQueryParams(ctx httpx.IContext) error {
-	return rest.RejectLegacyQueryParams(ctx, llmAuditLogLegacyListQueryParams...)
+// rejectUnknownQueryParams 拒绝 DSL 之外的查询参数。
+//
+// rest 解析器只读取自己认识的键，多余参数会被静默忽略；对审计/指标查询而言，
+// 把 user_id=5 忽略掉意味着返回全量数据而不是报错，这里必须显式拒绝。
+func rejectUnknownQueryParams(ctx httpx.IContext, routeParams ...string) error {
+	var unknown []string
+	for key := range ctx.QueryParams() {
+		if _, ok := queryDSLParams[key]; !ok && !slices.Contains(routeParams, key) {
+			unknown = append(unknown, key)
+		}
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	sort.Strings(unknown)
+	return errors.NewCode(errors.InvalidInput, "unsupported query parameters; use filter=field:op:value").
+		WithContext("params", strings.Join(unknown, ","))
 }
 
 func writePaginatedList(ctx httpx.IContext, list any, total int64, page, size int) error {
@@ -51,10 +56,10 @@ func writeLLMMetricsAggregate(ctx httpx.IContext, metrics repo.IMetricsRepo) err
 	if metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rejectLLMMetricsLegacyQueryParams(ctx); err != nil {
+
+	if err := rejectUnknownQueryParams(ctx, "group_by"); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-
 	params, err := rest.ParseQueryParams(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
@@ -86,10 +91,10 @@ func writeLLMMetricsList(ctx httpx.IContext, metrics repo.IMetricsRepo) error {
 	if metrics == nil {
 		return httpx.WriteErrorCode(ctx, errors.Internal, "LLM metrics repo 未配置")
 	}
-	if err := rejectLLMMetricsLegacyListQueryParams(ctx); err != nil {
+
+	if err := rejectUnknownQueryParams(ctx); err != nil {
 		return httpx.WriteError(ctx, err)
 	}
-
 	opts, err := rest.ParsePaginationOptions(ctx, llmMetricsQueryConfig)
 	if err != nil {
 		return httpx.WriteError(ctx, err)
@@ -104,11 +109,4 @@ func writeLLMMetricsList(ctx httpx.IContext, metrics repo.IMetricsRepo) error {
 		return httpx.WriteError(ctx, err)
 	}
 	return writePaginatedList(ctx, list, total, opts.Page, opts.Size)
-}
-
-func appendLegacyQueryParams(base []string, extra ...string) []string {
-	out := make([]string, 0, len(base)+len(extra))
-	out = append(out, base...)
-	out = append(out, extra...)
-	return out
 }

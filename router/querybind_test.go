@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"gochen/db/query"
+	"gochen/app/query"
 )
 
 func TestDecodeMetricsFilter_UsesDefaultBindingForInitialisms(t *testing.T) {

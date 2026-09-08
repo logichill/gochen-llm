@@ -13,9 +13,9 @@ import (
 	"gochen-llm/repo"
 	"gochen/contextx"
 	"gochen/errors"
-	"gochen/logging"
+	"gochen/observe/logging"
 	"gochen/policy/retry"
-	runtime "gochen/task"
+	runtime "gochen/process/task"
 )
 
 // IProviderManager 抽象多源 LLM 管理器，负责端点选择与简单故障切换。

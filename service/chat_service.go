@@ -12,7 +12,7 @@ import (
 	"gochen-llm/entity"
 	"gochen-llm/repo"
 	"gochen/errors"
-	runtime "gochen/task"
+	runtime "gochen/process/task"
 )
 
 // IChatService 抽象对话服务能力接口。

@@ -5,11 +5,11 @@ import (
 	"sort"
 
 	"gochen-llm/entity"
+	"gochen-runtime/db/orm/repo"
 	"gochen/db/orm"
-	"gochen/db/orm/repo"
 	domaincrud "gochen/domain/crud"
 	"gochen/errors"
-	"gochen/ident"
+	"gochen/gen"
 )
 
 // PromptFilter 定义提示词过滤条件。
@@ -37,7 +37,7 @@ type promptTemplateRepoImpl struct {
 }
 
 // NewPromptTemplateRepo 创建提示词Template仓储。
-func NewPromptTemplateRepo(o orm.IOrm, idGenerator ident.IGenerator[int64]) (IPromptTemplateRepository, error) {
+func NewPromptTemplateRepo(o orm.IOrm, idGenerator gen.IGenerator[int64]) (IPromptTemplateRepository, error) {
 	base, err := repo.NewRepo[*entity.PromptTemplate, int64](
 		o,
 		(entity.PromptTemplate{}).TableName(),

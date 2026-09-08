@@ -1,36 +1,48 @@
 package moduleauthz
 
 import (
-	auth "gochen/auth"
-	"gochen/auth/http"
+	"gochen-runtime/api/rest/action"
+	"gochen-runtime/host/authz"
 	"gochen/httpx"
 )
 
 var (
-	ReadPermission = auth.APIPermission("llm", auth.PermissionActionRead).
+	ReadPermission = authz.APIPermission("llm", authz.PermissionActionRead).
 			Label("LLM Read").
 			Desc("View LLM configuration, status, metrics, and audit data.").
-			Scope(auth.PermissionScopePlatform, auth.PermissionScopeTenant).
-			Risk(auth.PermissionRiskMedium)
-	WritePermission = auth.APIPermission("llm", auth.PermissionActionWrite).
+			Scope(authz.PermissionScopePlatform, authz.PermissionScopeTenant).
+			Risk(authz.PermissionRiskMedium)
+	WritePermission = authz.APIPermission("llm", authz.PermissionActionWrite).
 			Label("LLM Write").
 			Desc("Manage LLM configuration, pricing, safety policy, and operational actions.").
-			Scope(auth.PermissionScopePlatform, auth.PermissionScopeTenant).
-			Risk(auth.PermissionRiskHigh)
-	PermissionSet = auth.NewPermissionSet(
+			Scope(authz.PermissionScopePlatform, authz.PermissionScopeTenant).
+			Risk(authz.PermissionRiskHigh)
+	PermissionSet = authz.NewPermissionSet(
 		ReadPermission,
 		WritePermission,
 	)
+
+	readMiddleware  = mustFastDeny(authz.PermissionActionRead)
+	writeMiddleware = mustFastDeny(authz.PermissionActionWrite)
 )
 
-func PermissionDefinitions() []auth.PermissionDefinition {
-	return auth.PermissionDefinitions(ReadPermission, WritePermission)
+func mustFastDeny(actionType authz.PermissionAction) httpx.Middleware {
+	code := PermissionSet.Must(actionType).Code
+	mw, err := action.FastDeny(authz.NewActionChecker(), code)
+	if err != nil {
+		panic(err)
+	}
+	return mw
+}
+
+func PermissionDefinitions() []authz.PermissionDefinition {
+	return authz.PermissionDefinitions(ReadPermission, WritePermission)
 }
 
 func ReadMiddleware() httpx.Middleware {
-	return authhttp.PermissionMiddleware(PermissionSet.Must(auth.PermissionActionRead))
+	return readMiddleware
 }
 
 func WriteMiddleware() httpx.Middleware {
-	return authhttp.PermissionMiddleware(PermissionSet.Must(auth.PermissionActionWrite))
+	return writeMiddleware
 }
